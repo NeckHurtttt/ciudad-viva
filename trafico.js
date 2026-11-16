@@ -124,6 +124,7 @@ function calcularTrafico(h) {
     if (v.cerrada) { v.r = 0; v.v = 0; v.nivel = CERRADA; kmLento += k; continue; }
     const x = 1.5 * ((v.carga + (v.extra || 0)) / CAPAC[v.c]) ** 0.55 * fh * fl; // comprime la cola: pocos tramos con 20+ líneas
     v.r = 0.1 + 0.9 / (1 + 0.8 * x ** 2.2); // piso: aun atascado se avanza a paso de hombre
+    if (v.rep && v.rep < 1) v.r *= v.rep;   // reportes ciudadanos (choque, bloqueo, inundación, bache)
     v.v = VLIBRE[v.c] * v.r;
     v.nivel = nivel(v.r);
     sumaV += v.v * k; if (v.r < 0.5) kmLento += k;
@@ -148,7 +149,7 @@ function particulas(seg) {
   const out = [];
   for (const v of T.vias) {
     if (v.L < 60 || v.cerrada) continue;
-    const dens = 1 + (1 - v.r) * 4, n = Math.max(1, Math.round(v.L / 260 * dens));
+    const dens = (1 + (1 - v.r) * 4) * q().particulas, n = Math.max(1, Math.round(v.L / 260 * dens));
     const vel = v.v / 3.6 * 9; // m/s acelerado
     for (let i = 0; i < n; i++) {
       const s = ((i / n) * v.L + seg * vel + v.L * ((v.mid[0] * 997) % 1)) % v.L;
@@ -172,7 +173,7 @@ function capasTrafico(L, seg) {
     getWidth: (d) => d.c * 0.9 + 1.2, getColor: (d) => hex(d.nivel[2], 235), capRounded: true, jointRounded: true,
     updateTriggers: { getColor: T.horaCalc }, parameters: { depthCompare: "always", depthWriteEnabled: false },
   }));
-  if (!lejos) L.push(new ScatterplotLayer({
+  if (!lejos && q().particulas > 0) L.push(new ScatterplotLayer({
     id: "trafico-flujo", data: particulas(seg), getPosition: (d) => d.p, getFillColor: (d) => hex(d.col, 255),
     getRadius: 9, radiusMinPixels: 1.4, radiusMaxPixels: 3.2, parameters: { depthCompare: "always", depthWriteEnabled: false },
   }));

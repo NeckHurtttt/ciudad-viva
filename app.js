@@ -220,6 +220,7 @@ function capas(seg) {
     }));
   }
   capasTrafico(L, seg);
+  capasAmbiente(L, seg);
   capasDetalle(L, seg);
   capasFunciones(L, seg);
   if (c.viento) {
@@ -264,6 +265,7 @@ const overlay = new MapboxOverlay({
   getTooltip: ({ object, layer }) => {
     if (!object || !layer) return null;
     if (layer.id === "micros") return { text: `${object.ruta.nombre}\n${object.ruta.desde} → ${object.ruta.hasta}`, className: "tip" };
+    if (layer.id === "reportes") return { text: `${TIPOS[object.tipo].t} · ${hace(object.t)}\n${object.votos} ${object.votos > 1 ? "personas lo confirman" : "reporte"} · toca para confirmar`, className: "tip" };
     if (layer.id === "hitos") return { text: `${object.n}\n${CAT[object.c][1]}`, className: "tip" };
     if (layer.id === "trafico") return { text: `${object.n}\n${object.nivel[1]} · ~${Math.round(object.v)} km/h (libre ${VLIBRE[object.c]})\n${fmt(object.lineas, 1)} líneas de micro por tramo`, className: "tip" };
     if (layer.id === "criticos") return { text: `#${T.criticos.indexOf(object) + 1} ${nombreCruce(object)}\n${nivel(object.r)[1]} · ~${Math.round(object.v)} km/h · ${object.lineas} líneas`, className: "tip" };
@@ -493,6 +495,7 @@ function analizarPunto() {
 
 function pestana(k) {
   S.tab = k;
+  if ($("#punto").dataset.hoja === "min" && matchMedia("(max-width: 900px)").matches) hoja("mid");
   document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === k));
   for (const t of ["trafico", "ruta", "sim", "punto"]) $("#sec" + t[0].toUpperCase() + t.slice(1)).hidden = k !== t;
   if (k !== "ruta" && R_.elegir) { R_.elegir = null; marcarElegir(); }
@@ -515,6 +518,7 @@ function cuadro(t) {
   if (S.vivo) S.hora = horaLocal();
   else if (S.play) { S.hora = (S.hora + dt * 1.2) % 24; $("#tiempo").value = S.hora; }
   if (S.giro) mapa.setBearing(mapa.getBearing() + dt * 4);
+  tickAmbiente(t);
   if (S.capas.viento) moverViento();
   overlay.setProps({ layers: capas((t - S.t0) / 1000) });
   if (t - ultimoPanel > 400) { estadisticas(); if (S.tab === "trafico") pintarTrafico(); else if (S.play || S.vivo) analizarPunto(); ultimoPanel = t; }
@@ -571,13 +575,13 @@ async function iniciar() {
   pintarCapas(); eventos();
   json("datos/depto.json").then(contornoDepto).catch((e) => console.warn("sin contorno", e));
   const [rutas, focos] = await Promise.all([json("datos/rutas.json"), json("datos/focos.json")]);
-  prepararRutas(rutas);
+  prepararRutas(rutas); prepararMicro();
   try { S.clima = await climaEnVivo(); }
   catch (e) { console.warn("Open-Meteo sin respuesta, uso respaldo", e); S.clima = await json("datos/clima.json"); }
   const todos = focos.puntos.map(([lon, lat, fecha, hora, frp]) => ({ p: [lon, lat], fecha, hora: `${String(hora).slice(0, 2)}:${String(hora).slice(2)}`, frp }));
   const fechas = [...new Set(todos.map((f) => f.fecha))].sort(), nf = fechas.length;
   for (const f of todos) f.nuevo = nf > 1 ? fechas.indexOf(f.fecha) / (nf - 1) : 1;
-  json("datos/calles.json").then((d) => { prepararTrafico(d); construirGrafo(); pintarTrafico(); })
+  json("datos/calles.json").then((d) => { prepararTrafico(d); construirGrafo(); prepararAmbiente(); cargarReportes(); pintarTrafico(); S.enlace = leerEnlace(); })
     .catch((e) => { console.warn("sin calles", e); $("#secTrafico").innerHTML = '<p class="vacio">No se pudieron cargar las calles.</p>'; });
   S.focos = { todos, recientes: todos.filter((f) => f.fecha === fechas[nf - 1]), fuente: focos.fuente };
   S.hora = horaLocal(); $("#tiempo").value = S.hora;
@@ -587,6 +591,6 @@ async function iniciar() {
 
 mapa.on("load", () => {
   try { edificios3D(); } catch (e) { console.warn(e); }
-  iniciar().then(() => setTimeout(() => $("#cargando").classList.add("fuera"), 300))
+  iniciar().then(() => setTimeout(() => { $("#cargando").classList.add("fuera"); intro(); }, 300))
     .catch((e) => { console.error(e); $("#cargando p").textContent = "No se pudieron cargar los datos: " + e.message; });
 });

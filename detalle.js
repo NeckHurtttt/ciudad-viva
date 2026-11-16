@@ -98,7 +98,7 @@ function etiquetasVisibles(z) {
 function capasDetalle(L, seg) {
   if (!D.listo) return;
   const z = mapa.getZoom();
-  if (S.capas.edificios && z >= 14.2 && D.arboles.length) {
+  if (S.capas.edificios && z >= 14.2 && D.arboles.length && q().arboles > 0) {
     const a = clamp((z - 14.2) / 0.8, 0, 1);
     L.push(new ColumnLayer({
       id: "troncos", data: D.arboles, getPosition: (d) => d.p, diskResolution: 6, radius: 0.45, extruded: true,
@@ -108,7 +108,7 @@ function capasDetalle(L, seg) {
     const tonos = (d, k) => [18 + d.t * 26 + k * 14, 112 + d.t * 64 + k * 22, 70 + d.t * 46 + k * 10, 250 * a];
     [[0, 0.38, 0.28, 1], [1, 0.62, 0.26, 0.82], [2, 0.84, 0.16, 0.5]].forEach(([k, base, alto, ancho]) => {
       for (const [grupo, rad] of [[0, 3.6], [1, 2.6]]) L.push(new ColumnLayer({
-        id: `copa-${k}-${grupo}`, data: grupo ? D.chicos : D.grandes, diskResolution: 10, radius: rad * ancho, extruded: true,
+        id: `copa-${k}-${grupo}`, data: grupo ? (q().arboles < 1 ? [] : D.chicos) : D.grandes, diskResolution: 10, radius: rad * ancho, extruded: true,
         getPosition: (d) => [d.p[0], d.p[1], d.h * base], getElevation: (d) => d.h * alto,
         getFillColor: (d) => tonos(d, k), material: { ambient: 0.5, diffuse: 0.7, shininess: 12, specularColor: [60, 90, 70] },
         updateTriggers: { getFillColor: a },
@@ -134,7 +134,7 @@ function capasDetalle(L, seg) {
       billboard: true, pickable: true, updateTriggers: { getFillColor: vis, getLineColor: vis },
     }));
     const cerca = etiquetasVisibles(z);
-    if (cerca.length) L.push(new TextLayer({
+    if (cerca.length && q().etiquetas) L.push(new TextLayer({
       id: "hitos-nombre", data: cerca, sizeUnits: "pixels", sizeMinPixels: 10, sizeMaxPixels: 13, getPosition: (d) => [...d.p, d.alto], getText: (d) => d.n.length > 34 ? d.n.slice(0, 33) + "…" : d.n,
       characterSet: "auto", fontFamily: "Space Grotesk, system-ui, sans-serif", fontWeight: 600, getSize: 12,
       getColor: [236, 240, 255, 255 * vis], getPixelOffset: [0, -16], getTextAnchor: "middle", getAlignmentBaseline: "bottom",

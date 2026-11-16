@@ -54,8 +54,10 @@ def focos():
             lat, lon = float(f["latitude"]), float(f["longitude"])
             if dentro(lat, lon):
                 pts.append([round(lon, 4), round(lat, 4), f["acq_date"], f["acq_time"], float(f["frp"] or 0)])
-    except Exception as e:  # sin red: copia de NINAWI
+    except Exception as e:  # sin red: copia de NINAWI (o se deja el archivo actual)
         print("FIRMS falló, uso NINAWI:", e, file=sys.stderr)
+        if not os.path.exists(os.path.join(PROY, "calendario-fuego")):
+            sys.exit("sin FIRMS ni NINAWI: dejo focos.json como estaba")
         src = json.load(open(os.path.join(PROY, "calendario-fuego", "web", "datos", "ultimos7.json")))
         fuente = src["fuente"] + " (copia)"
         for lat, lon, hora, fecha, frp in src["puntos"]:
@@ -218,6 +220,9 @@ def lugares():
 
 if __name__ == "__main__":
     os.makedirs(DATOS, exist_ok=True)
+    if "--solo" in sys.argv:  # p. ej. --solo focos (la Action diaria)
+        globals()[sys.argv[sys.argv.index("--solo") + 1]]()
+        sys.exit()
     rutas()
     focos()
     clima()

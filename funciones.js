@@ -78,14 +78,19 @@ function dijkstra(a, b) {
   return { seg: dist[b], L, libre, tramos };
 }
 
-const R_ = { A: null, B: null, res: null, horas: [], elegir: null };
+const R_ = { A: null, B: null, res: null, horas: [], elegir: null, modo: "auto" };
 
 function ponerExtremo(cual, p, nombre) {
   const g = enganchar(p); if (!g) return;
   R_[cual] = { p, nombre: nombre || `${fmt(Math.abs(p[1]), 4)}° S, ${fmt(Math.abs(p[0]), 4)}° O`, ...g };
   R_.elegir = null; marcarElegir();
-  if (R_.A && R_.B) calcularRuta(); else pintarRuta();
+  recalcularRuta();
   pestana("ruta");
+}
+
+function recalcularRuta() {
+  if (!(R_.A && R_.B)) return pintarRuta();
+  if (R_.modo === "micro") calcularMicro(); else calcularRuta();
 }
 
 function calcularRuta() {
@@ -123,6 +128,7 @@ function pintarRuta() {
   const el = $("#rutaInfo"); if (!el) return;
   $("#txtA").textContent = R_.A ? R_.A.nombre : "Elegir origen";
   $("#txtB").textContent = R_.B ? R_.B.nombre : "Elegir destino";
+  if (R_.modo === "micro") return pintarMicro();
   if (!R_.res) { el.innerHTML = R_.A && R_.B ? '<p class="ayuda">No encontré camino por avenidas entre esos puntos.</p>' : ""; return; }
   const r = R_.res, min = Math.round(r.seg / 60), libre = Math.round(r.libre / 60), extra = min - libre;
   const best = R_.horas.reduce((a, b) => (b.min < a.min ? b : a), R_.horas[0]);
@@ -150,7 +156,7 @@ const SIM = { modo: false, base: null };
 
 function cerrarCalle(v) {
   const grupo = T.vias.filter((w) => w.n === v.n && distM(w.mid, v.mid) < 600);
-  const cerrar = !v.cerrada;
+  const cerrar = !v.cerrada; SIM.escenario = null; pintarEscenarios();
   for (const w of grupo) { w.cerrada = cerrar; if (cerrar) T.sim.cerradas.add(w.i); else T.sim.cerradas.delete(w.i); }
   aplicarSim();
 }
@@ -165,7 +171,7 @@ function aplicarSim() {
   for (const i of guard.cerradas) { T.vias[i].cerrada = true; T.sim.cerradas.add(i); }
   T.sim.lluvia = guard.lluvia;
   repartirDesvio(); calcularTrafico(S.hora); T.horaCalc = S.hora;
-  if (R_.A && R_.B) calcularRuta();
+  if (R_.A && R_.B) recalcularRuta();
   pintarSim(); pintarTrafico();
 }
 
@@ -185,7 +191,7 @@ function pintarSim() {
   const vistos = new Set(), top = [];
   for (const o of afect) { if (vistos.has(o.v.n)) continue; vistos.add(o.v.n); top.push(o); if (top.length >= 5) break; }
   const nombres = [...new Set([...T.sim.cerradas].map((i) => T.vias[i].n))];
-  el.innerHTML = `
+  el.innerHTML = `${titularSim(a, b, top)}
     <div class="sub">${ambito}</div>
     <div class="comparar">
       <div><small>Antes</small><b>${Math.round(a.pctLento * 100)}%</b><span>${fmt(a.vel, 0)} km/h</span></div>
@@ -199,6 +205,7 @@ function pintarSim() {
 }
 
 function restablecerSim() {
+  SIM.escenario = null; if (typeof pintarEscenarios === "function") pintarEscenarios();
   for (const i of T.sim.cerradas) T.vias[i].cerrada = false;
   T.sim.cerradas.clear(); T.sim.lluvia = false; $("#simLluvia").classList.remove("on");
   aplicarSim();
@@ -207,6 +214,7 @@ function restablecerSim() {
 /* ===================== Capas de rutas y simulación ===================== */
 function capasFunciones(L, seg) {
   if (!T.listo) return;
+  capasReportes(L, seg);
   const cerr = T.vias.filter((v) => v.cerrada);
   if (cerr.length) {
     const prof = { depthCompare: "always", depthWriteEnabled: false };
@@ -217,13 +225,14 @@ function capasFunciones(L, seg) {
     L.push(new PathLayer({ id: "cerradas-borde", data: cerr, getPath: (d) => d.p, widthUnits: "pixels", getWidth: 8,
       getColor: [255, 255, 255, 255], getDashArray: [1.2, 1.2], dashJustified: true, extensions: [new deck.PathStyleExtension({ dash: true })], parameters: prof }));
     const marcas = []; const vistos = new Set();
-    for (const v of cerr) { const k = v.n + Math.round(v.mid[0] * 300); if (!vistos.has(k)) { vistos.add(k); marcas.push(v); } }
+    for (const v of cerr) { if (marcas.every((m) => distM(m.mid, v.mid) > 650)) marcas.push(v); } void vistos;
     L.push(new ScatterplotLayer({ id: "cerradas-x", data: marcas, getPosition: (d) => d.mid, getRadius: 40, radiusMinPixels: 11, radiusMaxPixels: 15,
       getFillColor: [255, 77, 109, 255], stroked: true, getLineColor: [255, 255, 255, 255], lineWidthMinPixels: 2, parameters: { depthCompare: "always", depthWriteEnabled: false } }));
     L.push(new TextLayer({ id: "cerradas-txt", data: marcas, getPosition: (d) => d.mid, getText: () => "✕", characterSet: "auto",
       getSize: 13, getColor: [255, 255, 255, 255], fontWeight: 700, getTextAnchor: "middle", getAlignmentBaseline: "center", parameters: { depthCompare: "always", depthWriteEnabled: false } }));
   }
-  if (R_.res && S.tab === "ruta") {
+  if (R_.modo === "micro" && S.tab === "ruta") capasMicro(L, seg);
+  if (R_.res && S.tab === "ruta" && R_.modo === "auto") {
     const segs = R_.res.tramos.map((t) => ({ path: [G.lista[t.desde].p, G.lista[t.to].p], v: T.vias[t.via] }));
     L.push(new PathLayer({ id: "ruta-halo", data: segs, getPath: (d) => d.path, widthUnits: "pixels", getWidth: 16,
       getColor: [124, 92, 255, 90], capRounded: true, jointRounded: true, parameters: { depthCompare: "always", depthWriteEnabled: false } }));
@@ -246,6 +255,7 @@ function capasFunciones(L, seg) {
 
 /* ===================== Clic en el mapa (lo llama app.js primero) ===================== */
 function clicFunciones(e, f) {
+  if (clicExtras(e)) return true;
   const p = [e.lngLat.lng, e.lngLat.lat];
   if (R_.elegir) { ponerExtremo(R_.elegir, p); return true; }
   if (SIM.modo) {
@@ -357,10 +367,13 @@ function salirPresentacion() {
 function eventosFunciones() {
   $("#elegirA").onclick = () => { R_.elegir = R_.elegir === "A" ? null : "A"; SIM.modo = false; marcarSim(); marcarElegir(); };
   $("#elegirB").onclick = () => { R_.elegir = R_.elegir === "B" ? null : "B"; SIM.modo = false; marcarSim(); marcarElegir(); };
-  $("#invertir").onclick = () => { [R_.A, R_.B] = [R_.B, R_.A]; calcularRuta(); pintarRuta(); };
-  $("#borrarRuta").onclick = () => { R_.A = R_.B = R_.res = null; R_.horas = []; pintarRuta(); };
+  $("#invertir").onclick = () => { [R_.A, R_.B] = [R_.B, R_.A]; recalcularRuta(); };
+  $("#borrarRuta").onclick = () => { R_.A = R_.B = R_.res = M.res = null; R_.horas = []; pintarRuta(); };
+  document.querySelectorAll("[data-modo]").forEach((b) => b.onclick = () => {
+    R_.modo = b.dataset.modo; document.querySelectorAll("[data-modo]").forEach((x) => x.classList.toggle("on", x === b)); recalcularRuta();
+  });
   $("#simModo").onclick = () => { SIM.modo = !SIM.modo; R_.elegir = null; marcarSim(); marcarElegir(); };
-  $("#simLluvia").onclick = () => { T.sim.lluvia = !T.sim.lluvia; $("#simLluvia").classList.toggle("on", T.sim.lluvia); aplicarSim(); };
+  $("#simLluvia").onclick = () => { SIM.escenario = null; pintarEscenarios(); T.sim.lluvia = !T.sim.lluvia; $("#simLluvia").classList.toggle("on", T.sim.lluvia); aplicarSim(); };
   $("#simReset").onclick = restablecerSim;
   $("#simInfo").addEventListener("click", (e) => {
     const ch = e.target.closest(".cerr"); if (!ch) return;
@@ -386,6 +399,7 @@ function eventosFunciones() {
     if (e.key === "Escape" && PRES.on) salirPresentacion();
   });
   $("#presentar").onclick = presentar;
+  eventosExtras();
   $("#guionSalir").onclick = salirPresentacion;
 }
 function marcarSim() { $("#simModo").classList.toggle("on", SIM.modo); $("#simModo b").textContent = SIM.modo ? "Toca una avenida para cerrarla o reabrirla" : "Cerrar calles"; }

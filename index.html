@@ -8,7 +8,7 @@
 <link rel="icon" href="icono.svg">
 <link rel="stylesheet" href="vendor/fuentes.css">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="estilo.css?v=11161000">
+<link rel="stylesheet" href="estilo.css?v=11161023">
 </head>
 <body>
 <div id="mapa"></div>
@@ -37,10 +37,13 @@
     <button data-vista="depto">Departamento</button>
     <button id="giro" title="Recorrido automático">⟳ Recorrido</button>
     <button id="presentar" class="destacado" title="Presentación guiada">▶ Presentación</button>
+    <button id="compartir" title="Copiar enlace a esta vista">⤴ Compartir</button>
+    <button id="calidad" title="Calidad gráfica">◐ Calidad: auto</button>
   </div>
 </aside>
 
 <aside id="punto" class="vidrio panel">
+  <button id="asa" aria-label="Mover panel"><i></i></button>
   <div class="tabs" role="tablist">
     <button data-tab="trafico" class="on" role="tab">Tráfico</button>
     <button data-tab="ruta" role="tab">Ruta</button>
@@ -48,6 +51,7 @@
     <button data-tab="punto" role="tab">Punto</button>
   </div>
   <div id="secRuta" class="sec" hidden>
+    <div class="modo-ruta" role="radiogroup"><button data-modo="auto" class="on">🚗 Auto</button><button data-modo="micro">🚌 Micro</button></div>
     <div class="ab">
       <button id="elegirA" class="extremo a"><i>A</i><span id="txtA">Elegir origen</span></button>
       <button id="elegirB" class="extremo b"><i>B</i><span id="txtB">Elegir destino</span></button>
@@ -58,6 +62,9 @@
   </div>
   <div id="secSim" class="sec" hidden>
     <p class="ayuda">¿Qué pasa si se cierra una avenida por un bloqueo, una obra o un desfile? ¿Y si cae un aguacero?</p>
+    <div class="sub">Escenarios listos</div>
+    <div id="escenarios"></div>
+    <div class="sub">O arma el tuyo</div>
     <button id="simModo" class="accion"><i>✕</i><b>Cerrar calles</b></button>
     <button id="simLluvia" class="accion lluvia"><i>☂</i><b>Lluvia fuerte</b></button>
     <div id="simInfo"></div>
@@ -87,6 +94,22 @@
   </div>
 </footer>
 
+<div class="reporte">
+  <div id="menuRep" class="vidrio" hidden>
+    <button data-tipo="choque"><i style="--c:#ff4d6d">!</i>Choque</button>
+    <button data-tipo="bloqueo"><i style="--c:#d23cff">✕</i>Bloqueo</button>
+    <button data-tipo="inundacion"><i style="--c:#4aa8ff">≈</i>Calle inundada</button>
+    <button data-tipo="bache"><i style="--c:#ffd23f">◒</i>Bache grande</button>
+  </div>
+  <button id="reportar" class="vidrio" title="Reportar algo en la calle">＋ Reportar</button>
+</div>
+<div id="aviso" class="vidrio" role="status" hidden></div>
+<div id="intro" hidden>
+  <h2 aria-label="Ciudad Viva"><span style="--i:0">C</span><span style="--i:1">i</span><span style="--i:2">u</span><span style="--i:3">d</span><span style="--i:4">a</span><span style="--i:5">d</span><span style="--i:6">&nbsp;</span><span style="--i:7">V</span><span style="--i:8">i</span><span style="--i:9">v</span><span style="--i:10">a</span><b style="--i:11">SCZ</b></h2>
+  <p>Santa Cruz de la Sierra · tráfico, micros, aire y fuego</p>
+  <small>toca para saltar</small>
+</div>
+
 <div id="guion" class="vidrio" hidden>
   <div class="cab"><span class="num">1/7</span><button id="guionSalir" class="mini">Salir ✕</button></div>
   <h3></h3><p></p>
@@ -98,9 +121,13 @@
 
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/deck.min.js"></script>
-<script src="app.js?v=11161000"></script>
-<script src="trafico.js?v=11161000"></script>
-<script src="detalle.js?v=11161000"></script>
-<script src="funciones.js?v=11161000"></script>
+<script src="config.js" onerror="this.remove()"></script>
+<script src="app.js?v=11161023"></script>
+<script src="trafico.js?v=11161023"></script>
+<script src="detalle.js?v=11161023"></script>
+<script src="micro.js?v=11161023"></script>
+<script src="ambiente.js?v=11161023"></script>
+<script src="extras.js?v=11161023"></script>
+<script src="funciones.js?v=11161023"></script>
 </body>
 </html>
