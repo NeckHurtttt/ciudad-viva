@@ -195,7 +195,9 @@ function calcularMicros(seg) {
 }
 
 /* ---------- Capas deck.gl ---------- */
-function opacidadRuta(r) { return S.lineaSel == null || S.lineaSel === r.idx ? 1 : 0.12; }
+// una línea seleccionada resalta ida y vuelta (mismo número)
+const esSel = (r) => S.lineaSel != null && S.rutas[S.lineaSel]?.ref === r.ref;
+function opacidadRuta(r) { return S.lineaSel == null || esSel(r) ? 1 : 0.12; }
 
 function capas(seg) {
   const L = [], c = S.capas, b = bitmaps();
@@ -205,8 +207,8 @@ function capas(seg) {
   if (c.micros) {
     L.push(new PathLayer({
       id: "rutas", data: S.rutas.flatMap((r) => r.tramos.map((path) => ({ path, r }))),
-      getPath: (d) => d.path, getColor: (d) => hex(d.r.color, 38 * opacidadRuta(d.r) + (S.lineaSel === d.r.idx ? 120 : 0)),
-      getWidth: (d) => (S.lineaSel === d.r.idx ? 5 : 2), widthUnits: "pixels", updateTriggers: { getColor: S.lineaSel, getWidth: S.lineaSel },
+      getPath: (d) => d.path, getColor: (d) => hex(d.r.color, 38 * opacidadRuta(d.r) + (esSel(d.r) ? 120 : 0)),
+      getWidth: (d) => (esSel(d.r) ? 5 : 2), widthUnits: "pixels", updateTriggers: { getColor: S.lineaSel, getWidth: S.lineaSel },
     }));
     const m = calcularMicros(seg); S.enRuta = m.cabezas.length;
     L.push(new PathLayer({
@@ -500,13 +502,14 @@ function pestana(k) {
   S.tab = k;
   if ($("#punto").dataset.hoja === "min" && matchMedia("(max-width: 900px)").matches) hoja("mid");
   document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === k));
-  for (const t of ["trafico", "ruta", "sim", "punto", "alertas"]) $("#sec" + t[0].toUpperCase() + t.slice(1)).hidden = k !== t;
+  for (const t of ["trafico", "ruta", "lineas", "sim", "punto", "alertas"]) $("#sec" + t[0].toUpperCase() + t.slice(1)).hidden = k !== t;
   if (k !== "ruta" && R_.elegir) { R_.elegir = null; marcarElegir(); }
   if (k !== "sim" && SIM.modo) { SIM.modo = false; marcarSim(); marcarElegir(); }
   if (k === "sim" && !SIM.base && T.listo) aplicarSim();
   $("#punto").dataset.tab = k;
   if (k === "trafico") pintarTrafico();
   if (k === "alertas") pintarAlertas();
+  if (k === "lineas") pintarLineas();
 }
 
 function irACritico(i) {

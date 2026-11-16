@@ -12,6 +12,9 @@
 |---|---|
 | **Tráfico** | Cada tramo de avenida (2.177) se pinta por velocidad estimada. Ranking de los 8 cruces más críticos con su nombre y curva de las 24 horas. |
 | **Ruta A→B en auto** | Camino más rápido por avenidas según el tráfico de la hora y **a qué hora conviene salir** (próximas 12 h). |
+| **Ir desde donde estás** | Botón ➜ en cada resultado del buscador o "◎ Desde mi ubicación": usa el GPS como origen. |
+| **Guiarme** | Navegación paso a paso (GPS): gira a la derecha/izquierda en tal avenida, camina a la parada, toma la línea X y baja en Y; distancia, minutos y hora de llegada; la cámara te sigue y recalcula si te desvías; voz opcional. **Simular el viaje** lo recorre solo (para probar o presentar). |
+| **Líneas** | Pestaña con las 71 líneas: busca por número, barrio o lugar ("UPSA" → las que pasan a menos de 300 m) y mira su recorrido, largo, calles y lugares por donde pasa. |
 | **Ruta en micro** | Qué línea tomar, dónde bajar y cuánto caminar, directo o con un transbordo, con las 71 líneas. |
 | **Simular** | Escenarios listos (desfile en el centro, bloqueo del 4to anillo, obras en el Cristo Redentor, aguacero a la salida) o cierra avenidas a mano: el tráfico se desvía y se compara la zona antes y después con un titular. |
 | **Reportes** | Choque, bloqueo, calle inundada o bache: aparece en el mapa, frena el tráfico cercano 3 horas y otros lo confirman tocándolo. |

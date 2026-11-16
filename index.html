@@ -8,7 +8,7 @@
 <link rel="icon" href="icono.svg">
 <link rel="stylesheet" href="vendor/fuentes.css">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="estilo.css?v=11162300">
+<link rel="stylesheet" href="estilo.css?v=11170000">
 </head>
 <body>
 <div id="mapa"></div>
@@ -51,6 +51,7 @@
   <div class="tabs" role="tablist">
     <button data-tab="trafico" class="on" role="tab">Tráfico</button>
     <button data-tab="ruta" role="tab">Ruta</button>
+    <button data-tab="lineas" role="tab">Líneas</button>
     <button data-tab="sim" role="tab">Simular</button>
     <button data-tab="punto" role="tab">Punto</button>
     <button data-tab="alertas" role="tab">Alertas</button>
@@ -62,8 +63,17 @@
       <button id="elegirB" class="extremo b"><i>B</i><span id="txtB">Elegir destino</span></button>
       <div class="ab-acc"><button id="invertir" class="mini" title="Invertir">⇅</button><button id="borrarRuta" class="mini" title="Borrar">✕</button></div>
     </div>
-    <p class="ayuda">Toca A o B y luego el mapa, o busca un lugar arriba y elige A/B.</p>
+    <button id="desdeYo" class="mini yo-btn">◎ Desde mi ubicación</button>
+    <p class="ayuda">Toca A o B y luego el mapa, o busca un lugar arriba y elige A/B (o ➜ para ir desde donde estás).</p>
     <div id="rutaInfo"></div>
+    <div id="guiarBox" hidden>
+      <button id="guiar" class="accion guiar"><i>➤</i><b>Guiarme</b></button>
+      <button id="simViaje" class="mini">▶ Simular el viaje</button>
+    </div>
+  </div>
+  <div id="secLineas" class="sec" hidden>
+    <input id="buscaLinea" class="busca-linea" type="search" placeholder="Número, barrio o lugar (ej. 18, Plan 3000, UPSA)" autocomplete="off">
+    <div id="lineasInfo"></div>
   </div>
   <div id="secSim" class="sec" hidden>
     <p class="ayuda">¿Qué pasa si se cierra una avenida por un bloqueo, una obra o un desfile? ¿Y si cae un aguacero?</p>
@@ -133,6 +143,11 @@
 <div id="cargando"><div class="anillo"></div><p>Despertando la ciudad…</p></div>
 <div id="fuentes" role="button" tabindex="0" title="Cómo calculamos">Datos: OpenStreetMap (calles y micros) · tráfico estimado · NASA FIRMS · Open-Meteo/CAMS · mapa OpenFreeMap · <u>ⓘ cómo calculamos</u></div>
 <div id="cmpEtq" class="vidrio" hidden>DESPUÉS</div>
+<div id="nav" class="vidrio" hidden>
+  <div class="nav-ico" id="navIco">➤</div>
+  <div class="nav-txt"><b id="navTxt">—</b><span id="navSub">—</span></div>
+  <div class="nav-acc"><button id="navVoz" class="mini">🔈</button><button id="navSalir" class="mini">✕</button></div>
+</div>
 
 <dialog id="metodo" class="vidrio">
   <div class="met-cab"><h2>Cómo calculamos</h2><button id="metodoCerrar" class="mini" aria-label="Cerrar">✕</button></div>
@@ -173,13 +188,14 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/deck.min.js"></script>
 <script src="config.js" onerror="this.remove()"></script>
-<script src="app.js?v=11162300"></script>
-<script src="trafico.js?v=11162300"></script>
-<script src="detalle.js?v=11162300"></script>
-<script src="micro.js?v=11162300"></script>
-<script src="ambiente.js?v=11162300"></script>
-<script src="extras.js?v=11162300"></script>
-<script src="funciones.js?v=11162300"></script>
-<script src="mejoras.js?v=11162300"></script>
+<script src="app.js?v=11170000"></script>
+<script src="trafico.js?v=11170000"></script>
+<script src="detalle.js?v=11170000"></script>
+<script src="micro.js?v=11170000"></script>
+<script src="ambiente.js?v=11170000"></script>
+<script src="extras.js?v=11170000"></script>
+<script src="funciones.js?v=11170000"></script>
+<script src="mejoras.js?v=11170000"></script>
+<script src="navegar.js?v=11170000"></script>
 </body>
 </html>
