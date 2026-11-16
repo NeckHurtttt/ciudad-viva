@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ciudad Viva SCZ</title>
+<meta name="description" content="Gemelo digital de Santa Cruz de la Sierra: micros, aire, lluvia, viento y focos de calor en un mapa 3D.">
+<link rel="icon" href="icono.svg">
+<link rel="stylesheet" href="vendor/fuentes.css">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="estilo.css?v=11161000">
+</head>
+<body>
+<div id="mapa"></div>
+<div class="vineta"></div>
+
+<header class="marca vidrio">
+  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><use href="icono.svg#i"/></svg>
+  <div>
+    <h1>Ciudad Viva <span>SCZ</span></h1>
+    <p>Gemelo digital de Santa Cruz de la Sierra</p>
+  </div>
+  <div class="reloj"><span id="estado" class="pill">EN VIVO</span><b id="hora">--:--</b></div>
+</header>
+
+<div class="buscador vidrio">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+  <input id="buscar" type="search" placeholder="Buscar lugar, avenida o línea…  ( / )" autocomplete="off" aria-label="Buscar">
+  <ul id="resultados" class="vidrio" hidden></ul>
+</div>
+
+<aside id="capas" class="vidrio panel">
+  <h2>Capas <button id="plegar" class="mini" aria-label="Plegar">–</button></h2>
+  <div id="listaCapas"></div>
+  <div class="vistas">
+    <button data-vista="ciudad" class="on">Ciudad</button>
+    <button data-vista="depto">Departamento</button>
+    <button id="giro" title="Recorrido automático">⟳ Recorrido</button>
+    <button id="presentar" class="destacado" title="Presentación guiada">▶ Presentación</button>
+  </div>
+</aside>
+
+<aside id="punto" class="vidrio panel">
+  <div class="tabs" role="tablist">
+    <button data-tab="trafico" class="on" role="tab">Tráfico</button>
+    <button data-tab="ruta" role="tab">Ruta</button>
+    <button data-tab="sim" role="tab">Simular</button>
+    <button data-tab="punto" role="tab">Punto</button>
+  </div>
+  <div id="secRuta" class="sec" hidden>
+    <div class="ab">
+      <button id="elegirA" class="extremo a"><i>A</i><span id="txtA">Elegir origen</span></button>
+      <button id="elegirB" class="extremo b"><i>B</i><span id="txtB">Elegir destino</span></button>
+      <div class="ab-acc"><button id="invertir" class="mini" title="Invertir">⇅</button><button id="borrarRuta" class="mini" title="Borrar">✕</button></div>
+    </div>
+    <p class="ayuda">Toca A o B y luego el mapa, o busca un lugar arriba y elige A/B.</p>
+    <div id="rutaInfo"></div>
+  </div>
+  <div id="secSim" class="sec" hidden>
+    <p class="ayuda">¿Qué pasa si se cierra una avenida por un bloqueo, una obra o un desfile? ¿Y si cae un aguacero?</p>
+    <button id="simModo" class="accion"><i>✕</i><b>Cerrar calles</b></button>
+    <button id="simLluvia" class="accion lluvia"><i>☂</i><b>Lluvia fuerte</b></button>
+    <div id="simInfo"></div>
+    <button id="simReset" class="mini">Restablecer todo</button>
+  </div>
+  <div id="secTrafico" class="sec"><div class="vacio"><div class="radar"></div><p>Calculando el tráfico…</p></div></div>
+  <div id="secPunto" class="sec" hidden>
+  <div id="puntoVacio" class="vacio">
+    <div class="radar"></div>
+    <p>Toca cualquier lugar del mapa para ver el aire, la lluvia, los micros que pasan cerca y el foco de calor más próximo.</p>
+  </div>
+  <div id="puntoInfo" hidden></div>
+  </div>
+</aside>
+
+<footer class="linea vidrio">
+  <button id="play" class="redondo" aria-label="Reproducir el día">▶</button>
+  <button id="ahora" class="mini txt">Ahora</button>
+  <div class="pista">
+    <svg id="grafico" preserveAspectRatio="none"></svg>
+    <input id="tiempo" type="range" min="0" max="23.99" step="0.01" value="12" aria-label="Hora del día">
+    <div class="marcas"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div>
+  </div>
+  <div class="leyenda">
+    <span><i style="background:#2bd9a0"></i>PM2,5</span>
+    <span><i style="background:#4aa8ff"></i>lluvia</span>
+  </div>
+</footer>
+
+<div id="guion" class="vidrio" hidden>
+  <div class="cab"><span class="num">1/7</span><button id="guionSalir" class="mini">Salir ✕</button></div>
+  <h3></h3><p></p>
+  <div class="barra-g"><i></i></div>
+</div>
+
+<div id="cargando"><div class="anillo"></div><p>Despertando la ciudad…</p></div>
+<div id="fuentes">Datos: OpenStreetMap (calles y micros) · tráfico estimado · NASA FIRMS · Open-Meteo/CAMS · mapa OpenFreeMap</div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/deck.min.js"></script>
+<script src="app.js?v=11161000"></script>
+<script src="trafico.js?v=11161000"></script>
+<script src="detalle.js?v=11161000"></script>
+<script src="funciones.js?v=11161000"></script>
+</body>
+</html>
