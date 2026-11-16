@@ -2,7 +2,7 @@
  * origen de cada dato (EN VIVO / ESTIMADO…), "Cómo calculamos", alertas (pantalla, notificación y Telegram),
  * zonas por anillo, 25 años de fuego (NINAWI), comparador antes/después, captura para compartir,
  * narración por voz, modo kiosco y paleta para daltónicos. */
-const { PolygonLayer } = deck;
+const { PolygonLayer, SolidPolygonLayer } = deck;
 const guardado = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
 
 /* ===================== Origen de cada dato ===================== */
@@ -441,7 +441,7 @@ async function edificiosIconicos() {
       "fill-extrusion-color": "#b8664a", "fill-extrusion-vertical-gradient": true, "fill-extrusion-opacity": 1 } }, primerTexto);
 }
 function capasIconos(L) {
-  aplicarDiaNoche();
+  aplicarDiaNoche(); capasBordes(L);
   if (!ICN.lista.length || !S.capas.edificios) return;
   if (AMB.dPatron && AMB.dPatron !== ICN.patron && mapa.getLayer("iconos-3d")) { // vidrio claro de día, encendido de noche
     ICN.patron = AMB.dPatron; const dia = AMB.dPatron === "dia";
@@ -463,75 +463,125 @@ indiceBusqueda = function () {
 /* ===================== Todos los edificios: fachadas, techos y día/noche ===================== */
 // Cada edificio del mapa base (OpenStreetMap) recibe una fachada según su altura y un techo encima.
 // La variante sale de su id, así cada casa se ve distinta pero siempre igual entre visitas.
-const EDF = { patron: "", listo: false };
+const EDF = { patron: "", listo: false, bordes: [], techos: [], t: 0, v: 0 };
 const OSMID = ["floor", ["/", ["to-number", ["id"], 0], 10]]; // id de mosaico = id OSM × 10 + tipo
 const VAR = ["%", OSMID, 4];
-function texturaFachada(pared, marco, vidrio, luz, pisos, conPuerta, semilla, noche) {
+function texturaFachada(pared, marco, vidrio, luces, pisos, conPuerta, semilla, prob) {
+  // fachada oscura con ventanas reales por piso; "prob" = cuántas ventanas tienen luz
   const W = 64, H = 64, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const g = cv.getContext("2d"); let s0 = semilla; const rnd = () => ((s0 = (s0 * 16807) % 2147483647) / 2147483647);
   g.fillStyle = pared; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "0,0,0" : "255,255,255"},${0.03 + rnd() * 0.04})`; g.fillRect(rnd() * W, rnd() * H, 2, 2); } // revoque
+  for (let i = 0; i < 200; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "0,0,0" : "140,255,220"},${0.02 + rnd() * 0.03})`; g.fillRect(rnd() * W, rnd() * H, 2, 2); }
   const alto = H / pisos;
   for (let p = 0; p < pisos; p++) {
     const y = p * alto;
-    g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(0, y + alto - 2, W, 2); // cornisa / losa
+    g.fillStyle = "rgba(43,217,160,.10)"; g.fillRect(0, y + alto - 1.5, W, 1.5); // losa de cada piso con brillo verde
     const n = pisos > 2 ? 4 : 2, ancho = W / n;
     for (let k = 0; k < n; k++) {
-      const x = k * ancho + ancho * 0.22, w = ancho * 0.56, h = alto * 0.5, yy = y + alto * 0.2;
+      const x = k * ancho + ancho * 0.2, w = ancho * 0.6, h = alto * 0.52, yy = y + alto * 0.2;
       const puerta = conPuerta && p === pisos - 1 && k === 1;
       g.fillStyle = marco; g.fillRect(x - 1, yy - 1, w + 2, (puerta ? alto * 0.78 : h) + 2);
-      const encendida = noche && rnd() < 0.45;
-      g.fillStyle = puerta ? (noche ? "#3a2416" : "#5a3a22") : encendida ? luz : vidrio;
+      const luz = rnd() < prob ? luces[(rnd() * luces.length) | 0] : null;
+      g.fillStyle = puerta ? "#0c1a1c" : luz || vidrio;
       g.fillRect(x, yy, w, puerta ? alto * 0.78 : h);
-      if (!puerta && !encendida) { g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(x, yy, w, h * 0.25); } // reflejo
+      if (luz) { g.fillStyle = "rgba(255,255,255,.35)"; g.fillRect(x, yy, w, 1); }
+      else if (!puerta) { g.fillStyle = "rgba(160,220,255,.14)"; g.fillRect(x, yy, w * 0.4, h); } // reflejo
     }
   }
   return g.getImageData(0, 0, W, H);
 }
-const CASAS = [ // pared, marco (paleta de casas cruceñas: crema, ocre, celeste, rosa)
-  ["#e9dcc0", "#8a6a4a"], ["#e0b77a", "#7a5232"], ["#bcd6e0", "#4d6b7a"], ["#e6bcb4", "#7a4a44"],
+// Colores de fachada como en Santa Cruz: cada edificio toma uno según su id de OSM (siempre el mismo).
+// OSM casi nunca trae el color real (building:colour), así que es una paleta realista, no la foto de cada uno.
+const CASAS = [ // pared, marco
+  ["#ece6d8", "#7a7268"], ["#e8d7b0", "#8a6a4a"], ["#e8c06a", "#7a5a2a"], ["#d39a55", "#6a4a2a"],
+  ["#b4604a", "#5a2e22"], ["#e0a090", "#7a4a44"], ["#a9cde0", "#4d6b7a"], ["#a8d4b8", "#4a6a56"],
 ];
-const MEDIOS = [["#d8d2c6", "#5c5a58"], ["#b9c2cc", "#3f4a58"], ["#e4d6b8", "#6a5a40"], ["#c9b8a8", "#4f4036"]];
+const MEDIOS = [["#b9bcc0", "#4a4e54"], ["#e4e4e0", "#6a6a66"], ["#a65a44", "#4a261c"], ["#d6c7a6", "#6a5a40"], ["#8fa3b5", "#3a4a5a"], ["#cdb48c", "#5a4a32"]];
+const TECHOS = ["#b5603f", "#a3a39e", "#c4c1b8", "#8d9aa3", "#a8423a", "#4f7a5c", "#4d6f8f", "#ddd8cc", "#9a4a32", "#6f7378", "#d8cfb8", "#5f8fa8"];
+const LUCES_N = ["#ffe1a8", "#ffd58a", "#c8f4ff", "#9fe9ff", "#7dffd4"];
 function texturasEdificios() {
   CASAS.forEach(([p, m], i) => {
-    mapa.addImage(`casa-d-${i}`, texturaFachada(p, m, "#4f6b85", "#ffd58a", 2, true, 11 + i, false), { pixelRatio: 2 });
-    mapa.addImage(`casa-n-${i}`, texturaFachada(mezcla(p, "#0a0f22", 0.72), "#1a1f30", "#121a30", "#ffcf7a", 2, true, 11 + i, true), { pixelRatio: 2 });
+    mapa.addImage(`casa-d-${i}`, texturaFachada(p, m, "#4f6b85", [], 2, true, 11 + i, 0), { pixelRatio: 2 });
+    mapa.addImage(`casa-n-${i}`, texturaFachada(mezcla(p, "#0a0f22", 0.62), mezcla(m, "#0a0f22", 0.6), "#0d1426", LUCES_N, 2, true, 11 + i, 0.42), { pixelRatio: 2 });
   });
   MEDIOS.forEach(([p, m], i) => {
-    mapa.addImage(`medio-d-${i}`, texturaFachada(p, m, "#5d7fa3", "#ffe1a8", 4, false, 41 + i, false), { pixelRatio: 2 });
-    mapa.addImage(`medio-n-${i}`, texturaFachada(mezcla(p, "#0a0f22", 0.75), "#151a2a", "#10172c", "#ffd58a", 4, false, 41 + i, true), { pixelRatio: 2 });
+    mapa.addImage(`medio-d-${i}`, texturaFachada(p, m, "#5d7fa3", [], 4, false, 41 + i, 0), { pixelRatio: 2 });
+    mapa.addImage(`medio-n-${i}`, texturaFachada(mezcla(p, "#0a0f22", 0.66), mezcla(m, "#0a0f22", 0.6), "#0b1222", LUCES_N, 4, false, 41 + i, 0.48), { pixelRatio: 2 });
   });
 }
-const patronPor = (pref, dia) => ["match", VAR, 0, `${pref}-${dia}-0`, 1, `${pref}-${dia}-1`, 2, `${pref}-${dia}-2`, `${pref}-${dia}-3`];
+const patronPor = (pref, dia, n) => { const m = ["match", ["%", OSMID, n]]; for (let i = 0; i < n - 1; i++) m.push(i, `${pref}-${dia}-${i}`); m.push(`${pref}-${dia}-${n - 1}`); return m; };
+const SIN_PARTES = ["!=", ["get", "hide_3d"], true]; // el contorno de un edificio que ya tiene partes 3D
+const losa = (h) => (h < 9 ? 0.6 : 1.2);
 function mejorarEdificios() {
   if (EDF.listo || !mapa.getLayer("edificios-3d")) return;
   texturasEdificios();
-  const sinPartes = ["!=", ["get", "hide_3d"], true]; // el contorno de un edificio que ya tiene partes 3D
-  const conFiltro = (id) => { const f0 = ICN.filtros[id] !== undefined ? ICN.filtros[id] : mapa.getFilter(id); ICN.filtros[id] = f0 ? ["all", f0, sinPartes] : sinPartes; };
+  const conFiltro = (id) => { const f0 = ICN.filtros[id] !== undefined ? ICN.filtros[id] : mapa.getFilter(id); ICN.filtros[id] = f0 ? ["all", f0, SIN_PARTES] : SIN_PARTES; };
   for (const id of ["edificios-3d", "edificios-altos", "edificios-borde"]) conFiltro(id);
   aplicarOcultos();
   const primerTexto = mapa.getStyle().layers.find((l) => l.type === "symbol")?.id;
   mapa.setPaintProperty("edificios-3d", "fill-extrusion-opacity", 1);
-  // techos: teja (casi todas las casas), losa gris o calamina; en los medianos, losa con parapeto
-  mapa.addLayer({ id: "techos", type: "fill-extrusion", source: "openmaptiles", "source-layer": "building", minzoom: 14,
-    filter: ["all", ["<", ALTURA, 40], sinPartes],
-    paint: { "fill-extrusion-base": ALTURA, "fill-extrusion-height": ["+", ALTURA, ["case", ["<", ALTURA, 9], 0.9, 1.4]],
-      "fill-extrusion-color": "#b5532f", "fill-extrusion-opacity": 1 } }, primerTexto);
+  mapa.setPaintProperty("edificios-borde", "line-color", "#2bd9a0");
+  mapa.setPaintProperty("edificios-borde", "line-opacity", 0.45);
+  // techo plano oscuro (losa) encima de cada edificio; el borde neón lo dibuja deck.gl
+  mapa.addLayer({ id: "techos", type: "fill-extrusion", source: "openmaptiles", "source-layer": "building", minzoom: 14, maxzoom: 14.8,
+    filter: ["all", ["<", ALTURA, 40], SIN_PARTES],
+    paint: { "fill-extrusion-base": ALTURA, "fill-extrusion-height": ["+", ALTURA, ["case", ["<", ALTURA, 9], 0.6, 1.2]],
+      "fill-extrusion-color": "#0f2a2c", "fill-extrusion-opacity": 1 } }, primerTexto);
+  const luego = () => { clearTimeout(EDF.t); EDF.t = setTimeout(bordesTechos, 350); };
+  mapa.on("moveend", luego);
+  mapa.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) luego(); });
   EDF.listo = true; EDF.patron = "";
-  aplicarDiaNoche();
+  aplicarDiaNoche(); luego();
+}
+// El mapa base junta en una sola pieza los edificios de igual altura, así que el color por id no alcanza.
+// Por eso cada techo cercano se dibuja aparte con deck.gl: su propio color (como en la vida real) y su borde verde neón.
+const hashP = (p) => { let h = Math.round(p[0] * 1e5) * 73856093 ^ Math.round(p[1] * 1e5) * 19349663; return Math.abs(h); };
+function bordesTechos() {
+  if (mapa.getZoom() < 14.8) { EDF.bordes = []; EDF.techos = []; return; }
+  const z0 = mapa.getZoom(), c0 = mapa.getCenter().toArray(), radio = z0 > 16.5 ? 1100 : z0 > 15.6 ? 1900 : 3000;
+  const bordes = [], techos = [], vistos = new Set();
+  for (const f of mapa.querySourceFeatures("openmaptiles", { sourceLayer: "building" })) {
+    const pr = f.properties; if (pr.hide_3d || ICN.ocultos.has(f.id)) continue;
+    const g = f.geometry, polis = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+    const h = pr.render_height || 6;
+    for (const poli of polis) {
+      const r = poli[0]; if (!r || r.length < 4) continue;
+      if (Math.abs(r[0][0] - c0[0]) > 0.03 || Math.abs(r[0][1] - c0[1]) > 0.03 || distM(r[0], c0) > radio) continue;
+      const k = r[0][0].toFixed(6) + r[0][1].toFixed(6) + r.length; if (vistos.has(k)) continue; vistos.add(k);
+      const cx = r.reduce((a, p) => a + p[0], 0) / r.length, cy = r.reduce((a, p) => a + p[1], 0) / r.length;
+      const z = h + 0.08, alto = h >= 40 ? 2 : h >= 9 ? 1 : 0;
+      techos.push({ poly: poli.map((ring) => ring.map((p) => [p[0], p[1], z])), c: hashP([cx, cy]), alto });
+      bordes.push({ path: r.map((p) => [p[0], p[1], z + 0.12]), alto });
+      if (techos.length > 14000) break;
+    }
+    if (techos.length > 14000) break;
+  }
+  EDF.bordes = bordes; EDF.techos = techos; EDF.v++;
+}
+function capasBordes(L) {
+  if (!EDF.techos?.length || !S.capas.edificios || mapa.getZoom() < 14.8) return;
+  const noche = (AMB.dPatron || "noche") !== "dia", a = clamp((mapa.getZoom() - 14.8) / 0.4, 0, 1);
+  const col = EDF.cols || (EDF.cols = {});
+  const clave = noche ? "n" : "d";
+  if (!col[clave]) col[clave] = TECHOS.map((c) => hex(noche ? mezcla(c, "#0a0f22", 0.62) : mezcla(c, "#7d848c", 0.22)));
+  L.push(new SolidPolygonLayer({ id: "techos-color", data: EDF.techos, getPolygon: (d) => d.poly, filled: true, extruded: false,
+    getFillColor: (d) => (d.alto === 2 ? [40, 120, 160, 255 * a] : [...col[clave][d.c % TECHOS.length].slice(0, 3), 255 * a]),
+    updateTriggers: { getFillColor: [clave, a, EDF.v] } }));
+  L.push(new PathLayer({ id: "techo-neon", data: EDF.bordes, getPath: (d) => d.path, widthUnits: "pixels",
+    getWidth: (d) => (d.alto === 2 ? 1.6 : 1.1), getColor: (d) => (d.alto === 2 ? [64, 224, 255, (noche ? 230 : 170) * a] : [43, 217, 160, (noche ? (d.alto ? 210 : 160) : 130) * a]),
+    updateTriggers: { getColor: [noche, a, EDF.v] } }));
 }
 function aplicarDiaNoche() {
   const dia = (AMB.dPatron || "noche") === "dia" ? "d" : "n";
   if (!EDF.listo || EDF.patron === dia) return; EDF.patron = dia;
-  mapa.setPaintProperty("edificios-3d", "fill-extrusion-pattern", patronPor("casa", dia));
+  mapa.setPaintProperty("edificios-3d", "fill-extrusion-pattern", patronPor("casa", dia, CASAS.length));
   mapa.setPaintProperty("edificios-altos", "fill-extrusion-pattern", ["case", [">", ALTURA, 40],
-    dia === "d" ? "vidrio-frio" : "ventanas-frio", patronPor("medio", dia)]);
-  const k = dia === "d" ? 0 : 0.7; // de noche los techos se oscurecen
-  mapa.setPaintProperty("techos", "fill-extrusion-color", ["case", ["<", ALTURA, 9],
-    ["match", ["%", OSMID, 10], 0, mezcla("#a9583a", "#0a0f22", k), 1, mezcla("#9a4c32", "#0a0f22", k), 2, mezcla("#b8663e", "#0a0f22", k),
-      3, mezcla("#8e4630", "#0a0f22", k), 4, mezcla("#b0704c", "#0a0f22", k), 5, mezcla("#8c8f94", "#0a0f22", k), 6, mezcla("#a3a6aa", "#0a0f22", k),
-      7, mezcla("#7d858e", "#0a0f22", k), 8, mezcla("#6f7f8c", "#0a0f22", k), mezcla("#b2aea6", "#0a0f22", k)],
-    mezcla("#7c8089", "#0a0f22", k)]);
+    dia === "d" ? "vidrio-frio" : "ventanas-frio", patronPor("medio", dia, MEDIOS.length)]);
+  // techos como en la vida real: teja, hormigón, calamina pintada (roja, verde, azul) y terrazas; de noche se oscurecen
+  const t = (c) => (dia === "d" ? c : mezcla(c, "#0a0f22", 0.66));
+  const m = ["match", ["%", ["floor", ["/", OSMID, 3]], TECHOS.length]]; // otro reparto que el de las paredes
+  TECHOS.forEach((c, i) => { if (i < TECHOS.length - 1) m.push(i, t(c)); else m.push(t(c)); });
+  mapa.setPaintProperty("techos", "fill-extrusion-color", m);
 }
 
 /* ===================== Arranque ===================== */
