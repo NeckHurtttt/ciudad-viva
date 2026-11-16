@@ -441,6 +441,7 @@ async function edificiosIconicos() {
       "fill-extrusion-color": "#b8664a", "fill-extrusion-vertical-gradient": true, "fill-extrusion-opacity": 1 } }, primerTexto);
 }
 function capasIconos(L) {
+  aplicarDiaNoche();
   if (!ICN.lista.length || !S.capas.edificios) return;
   if (AMB.dPatron && AMB.dPatron !== ICN.patron && mapa.getLayer("iconos-3d")) { // vidrio claro de día, encendido de noche
     ICN.patron = AMB.dPatron; const dia = AMB.dPatron === "dia";
@@ -458,6 +459,80 @@ const indiceOriginal = indiceBusqueda;
 indiceBusqueda = function () {
   return indiceOriginal().concat(ICN.lista.map((e) => ({ t: e.n, s: e.h ? `Edificio · ${e.h} m · ${e.pisos} pisos · ${e.anio}` : "Templo · 1915", c: e.h ? "#40e0ff" : "#ffb27a", p: e.c, tipo: "lugar" })));
 };
+
+/* ===================== Todos los edificios: fachadas, techos y día/noche ===================== */
+// Cada edificio del mapa base (OpenStreetMap) recibe una fachada según su altura y un techo encima.
+// La variante sale de su id, así cada casa se ve distinta pero siempre igual entre visitas.
+const EDF = { patron: "", listo: false };
+const OSMID = ["floor", ["/", ["to-number", ["id"], 0], 10]]; // id de mosaico = id OSM × 10 + tipo
+const VAR = ["%", OSMID, 4];
+function texturaFachada(pared, marco, vidrio, luz, pisos, conPuerta, semilla, noche) {
+  const W = 64, H = 64, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d"); let s0 = semilla; const rnd = () => ((s0 = (s0 * 16807) % 2147483647) / 2147483647);
+  g.fillStyle = pared; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "0,0,0" : "255,255,255"},${0.03 + rnd() * 0.04})`; g.fillRect(rnd() * W, rnd() * H, 2, 2); } // revoque
+  const alto = H / pisos;
+  for (let p = 0; p < pisos; p++) {
+    const y = p * alto;
+    g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(0, y + alto - 2, W, 2); // cornisa / losa
+    const n = pisos > 2 ? 4 : 2, ancho = W / n;
+    for (let k = 0; k < n; k++) {
+      const x = k * ancho + ancho * 0.22, w = ancho * 0.56, h = alto * 0.5, yy = y + alto * 0.2;
+      const puerta = conPuerta && p === pisos - 1 && k === 1;
+      g.fillStyle = marco; g.fillRect(x - 1, yy - 1, w + 2, (puerta ? alto * 0.78 : h) + 2);
+      const encendida = noche && rnd() < 0.45;
+      g.fillStyle = puerta ? (noche ? "#3a2416" : "#5a3a22") : encendida ? luz : vidrio;
+      g.fillRect(x, yy, w, puerta ? alto * 0.78 : h);
+      if (!puerta && !encendida) { g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(x, yy, w, h * 0.25); } // reflejo
+    }
+  }
+  return g.getImageData(0, 0, W, H);
+}
+const CASAS = [ // pared, marco (paleta de casas cruceñas: crema, ocre, celeste, rosa)
+  ["#e9dcc0", "#8a6a4a"], ["#e0b77a", "#7a5232"], ["#bcd6e0", "#4d6b7a"], ["#e6bcb4", "#7a4a44"],
+];
+const MEDIOS = [["#d8d2c6", "#5c5a58"], ["#b9c2cc", "#3f4a58"], ["#e4d6b8", "#6a5a40"], ["#c9b8a8", "#4f4036"]];
+function texturasEdificios() {
+  CASAS.forEach(([p, m], i) => {
+    mapa.addImage(`casa-d-${i}`, texturaFachada(p, m, "#4f6b85", "#ffd58a", 2, true, 11 + i, false), { pixelRatio: 2 });
+    mapa.addImage(`casa-n-${i}`, texturaFachada(mezcla(p, "#0a0f22", 0.72), "#1a1f30", "#121a30", "#ffcf7a", 2, true, 11 + i, true), { pixelRatio: 2 });
+  });
+  MEDIOS.forEach(([p, m], i) => {
+    mapa.addImage(`medio-d-${i}`, texturaFachada(p, m, "#5d7fa3", "#ffe1a8", 4, false, 41 + i, false), { pixelRatio: 2 });
+    mapa.addImage(`medio-n-${i}`, texturaFachada(mezcla(p, "#0a0f22", 0.75), "#151a2a", "#10172c", "#ffd58a", 4, false, 41 + i, true), { pixelRatio: 2 });
+  });
+}
+const patronPor = (pref, dia) => ["match", VAR, 0, `${pref}-${dia}-0`, 1, `${pref}-${dia}-1`, 2, `${pref}-${dia}-2`, `${pref}-${dia}-3`];
+function mejorarEdificios() {
+  if (EDF.listo || !mapa.getLayer("edificios-3d")) return;
+  texturasEdificios();
+  const sinPartes = ["!=", ["get", "hide_3d"], true]; // el contorno de un edificio que ya tiene partes 3D
+  const conFiltro = (id) => { const f0 = ICN.filtros[id] !== undefined ? ICN.filtros[id] : mapa.getFilter(id); ICN.filtros[id] = f0 ? ["all", f0, sinPartes] : sinPartes; };
+  for (const id of ["edificios-3d", "edificios-altos", "edificios-borde"]) conFiltro(id);
+  aplicarOcultos();
+  const primerTexto = mapa.getStyle().layers.find((l) => l.type === "symbol")?.id;
+  mapa.setPaintProperty("edificios-3d", "fill-extrusion-opacity", 1);
+  // techos: teja (casi todas las casas), losa gris o calamina; en los medianos, losa con parapeto
+  mapa.addLayer({ id: "techos", type: "fill-extrusion", source: "openmaptiles", "source-layer": "building", minzoom: 14,
+    filter: ["all", ["<", ALTURA, 40], sinPartes],
+    paint: { "fill-extrusion-base": ALTURA, "fill-extrusion-height": ["+", ALTURA, ["case", ["<", ALTURA, 9], 0.9, 1.4]],
+      "fill-extrusion-color": "#b5532f", "fill-extrusion-opacity": 1 } }, primerTexto);
+  EDF.listo = true; EDF.patron = "";
+  aplicarDiaNoche();
+}
+function aplicarDiaNoche() {
+  const dia = (AMB.dPatron || "noche") === "dia" ? "d" : "n";
+  if (!EDF.listo || EDF.patron === dia) return; EDF.patron = dia;
+  mapa.setPaintProperty("edificios-3d", "fill-extrusion-pattern", patronPor("casa", dia));
+  mapa.setPaintProperty("edificios-altos", "fill-extrusion-pattern", ["case", [">", ALTURA, 40],
+    dia === "d" ? "vidrio-frio" : "ventanas-frio", patronPor("medio", dia)]);
+  const k = dia === "d" ? 0 : 0.7; // de noche los techos se oscurecen
+  mapa.setPaintProperty("techos", "fill-extrusion-color", ["case", ["<", ALTURA, 9],
+    ["match", ["%", OSMID, 10], 0, mezcla("#a9583a", "#0a0f22", k), 1, mezcla("#9a4c32", "#0a0f22", k), 2, mezcla("#b8663e", "#0a0f22", k),
+      3, mezcla("#8e4630", "#0a0f22", k), 4, mezcla("#b0704c", "#0a0f22", k), 5, mezcla("#8c8f94", "#0a0f22", k), 6, mezcla("#a3a6aa", "#0a0f22", k),
+      7, mezcla("#7d858e", "#0a0f22", k), 8, mezcla("#6f7f8c", "#0a0f22", k), mezcla("#b2aea6", "#0a0f22", k)],
+    mezcla("#7c8089", "#0a0f22", k)]);
+}
 
 /* ===================== Arranque ===================== */
 function eventosMejoras() {
@@ -495,6 +570,7 @@ const esperaMejoras = setInterval(() => {
   if (!(S.clima && S.focos && T.listo && document.querySelector(".capa"))) return;
   clearInterval(esperaMejoras);
   eventosMejoras(); pintarOrigen(); prepararZonas();
+  try { mejorarEdificios(); } catch (e) { console.warn("edificios", e); }
   edificiosIconicos().catch((e) => console.warn("sin edificios icónicos", e));
   if (DALT.on) aplicarDalt(); else pintarTrafico();
   if (/kiosco/.test(location.hash)) setTimeout(() => kiosco(true), 1500);

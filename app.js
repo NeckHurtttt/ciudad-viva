@@ -540,7 +540,7 @@ function eventos() {
   $("#listaCapas").addEventListener("click", (e) => {
     const b = e.target.closest(".capa"); if (!b) return;
     const k = b.dataset.k; S.capas[k] = !S.capas[k]; b.classList.toggle("on", S.capas[k]);
-    if (k === "edificios") for (const id of ["edificios-3d", "edificios-altos", "edificios-borde", "iconos-3d", "iconos-templo", "iconos-base"]) if (mapa.getLayer(id)) mapa.setLayoutProperty(id, "visibility", S.capas[k] ? "visible" : "none");
+    if (k === "edificios") for (const id of ["edificios-3d", "edificios-altos", "edificios-borde", "iconos-3d", "iconos-templo", "iconos-base", "techos"]) if (mapa.getLayer(id)) mapa.setLayoutProperty(id, "visibility", S.capas[k] ? "visible" : "none");
   });
   const plegar = (si) => { $("#capas").classList.toggle("plegado", si); $("#plegar").textContent = si ? "+" : "–"; };
   $("#plegar").onclick = () => plegar(!$("#capas").classList.contains("plegado"));

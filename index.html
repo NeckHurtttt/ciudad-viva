@@ -8,7 +8,7 @@
 <link rel="icon" href="icono.svg">
 <link rel="stylesheet" href="vendor/fuentes.css">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="estilo.css?v=11161600">
+<link rel="stylesheet" href="estilo.css?v=11161800">
 </head>
 <body>
 <div id="mapa"></div>
@@ -161,6 +161,7 @@
     <li><b>Ruta en auto:</b> camino más rápido (Dijkstra) sobre las avenidas con la velocidad de cada hora.</li>
     <li><b>Ruta en micro:</b> caminata a 4,5 km/h hasta 650 m, espera media de 7 min, un transbordo a menos de 250 m.</li>
     <li><b>Simular:</b> al cerrar una calle, su tráfico se reparte entre las avenidas cercanas; se compara la zona de 1,5 km antes y después.</li>
+    <li><b>Todos los edificios:</b> la planta y la altura vienen de OpenStreetMap (altura o pisos cuando los tiene). Cada uno recibe una fachada según su altura (casas de 2 pisos con puerta, medianos de 4 pisos, torres de vidrio) y un techo de teja, losa o calamina; la variante sale de su id. De noche se encienden ventanas al azar. Es un dibujo, no una foto de cada fachada.</li>
     <li><b>Edificios icónicos:</b> la planta de 12 torres y de la Catedral sale de OpenStreetMap y la altura de la lista de Wikipedia de edificios más altos de Bolivia (Green Tower 140 m, Platinum II 136 m…). La Catedral no tiene medidas publicadas: la nave usa los 4 niveles de OSM y sus torres son una estimación.</li>
     <li><b>Zonas:</b> anillos aproximados partidos en norte, este, sur y oeste (OpenStreetMap no tiene los distritos municipales).</li>
     <li><b>Alertas:</b> pronóstico de Open-Meteo para tu punto, focos a menos de 10 y 50 km, y el tráfico estimado de entrada y salida.</li>
@@ -171,13 +172,13 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/deck.min.js"></script>
 <script src="config.js" onerror="this.remove()"></script>
-<script src="app.js?v=11161600"></script>
-<script src="trafico.js?v=11161600"></script>
-<script src="detalle.js?v=11161600"></script>
-<script src="micro.js?v=11161600"></script>
-<script src="ambiente.js?v=11161600"></script>
-<script src="extras.js?v=11161600"></script>
-<script src="funciones.js?v=11161600"></script>
-<script src="mejoras.js?v=11161600"></script>
+<script src="app.js?v=11161800"></script>
+<script src="trafico.js?v=11161800"></script>
+<script src="detalle.js?v=11161800"></script>
+<script src="micro.js?v=11161800"></script>
+<script src="ambiente.js?v=11161800"></script>
+<script src="extras.js?v=11161800"></script>
+<script src="funciones.js?v=11161800"></script>
+<script src="mejoras.js?v=11161800"></script>
 </body>
 </html>
