@@ -223,6 +223,7 @@ function capas(seg) {
   capasAmbiente(L, seg);
   capasDetalle(L, seg);
   capasFunciones(L, seg);
+  capasMejoras(L, seg);
   if (c.viento) {
     L.push(new PathLayer({
       id: "viento", data: S.viento, getPath: (d) => d.rastro, widthUnits: "pixels", getWidth: 1.8,
@@ -258,7 +259,7 @@ function capas(seg) {
 /* ---------- Mapa ---------- */
 const mapa = new maplibregl.Map({
   container: "mapa", style: "https://tiles.openfreemap.org/styles/dark", ...CIUDAD,
-  maxPitch: 75, antialias: true, attributionControl: false,
+  maxPitch: 75, antialias: true, attributionControl: false, preserveDrawingBuffer: true, // para la captura
 });
 const overlay = new MapboxOverlay({
   interleaved: true, layers: [],
@@ -269,6 +270,7 @@ const overlay = new MapboxOverlay({
     if (layer.id === "hitos") return { text: `${object.n}\n${CAT[object.c][1]}`, className: "tip" };
     if (layer.id === "trafico") return { text: `${object.n}\n${object.nivel[1]} · ~${Math.round(object.v)} km/h (libre ${VLIBRE[object.c]})\n${fmt(object.lineas, 1)} líneas de micro por tramo`, className: "tip" };
     if (layer.id === "criticos") return { text: `#${T.criticos.indexOf(object) + 1} ${nombreCruce(object)}\n${nivel(object.r)[1]} · ~${Math.round(object.v)} km/h · ${object.lineas} líneas`, className: "tip" };
+    if (layer.id === "zonas") return { text: textoZona(object), className: "tip" };
     if (layer.id === "focos") return { text: `Foco de calor · ${object.fecha} ${object.hora}\nPotencia ${object.frp} MW`, className: "tip" };
     return null;
   },
@@ -443,7 +445,7 @@ function analizarPunto() {
   const dentro = p[0] >= c.lon[0] && p[0] <= c.lon[1] && p[1] >= c.lat[0] && p[1] <= c.lat[1];
   const pm = campo("pm25", h, ...p), mm = campo("lluvia", h, ...p), v = campo("viento", h, ...p),
     dir = campo("dir", h, ...p), temp = campo("temp", h, ...p), cat = categoria(pm);
-  const cerca = rutasCerca(p);
+  const cerca = rutasCerca(p).filter((x, i, a) => a.findIndex((y) => y.r.ref === x.r.ref) === i); // ida y vuelta = una línea
   let foco = null;
   if (S.focos) for (const f of S.focos.todos) { const d = haversine(p, f.p); if (!foco || d < foco.d) foco = { ...f, d }; }
 
@@ -497,12 +499,13 @@ function pestana(k) {
   S.tab = k;
   if ($("#punto").dataset.hoja === "min" && matchMedia("(max-width: 900px)").matches) hoja("mid");
   document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === k));
-  for (const t of ["trafico", "ruta", "sim", "punto"]) $("#sec" + t[0].toUpperCase() + t.slice(1)).hidden = k !== t;
+  for (const t of ["trafico", "ruta", "sim", "punto", "alertas"]) $("#sec" + t[0].toUpperCase() + t.slice(1)).hidden = k !== t;
   if (k !== "ruta" && R_.elegir) { R_.elegir = null; marcarElegir(); }
   if (k !== "sim" && SIM.modo) { SIM.modo = false; marcarSim(); marcarElegir(); }
   if (k === "sim" && !SIM.base && T.listo) aplicarSim();
   $("#punto").dataset.tab = k;
   if (k === "trafico") pintarTrafico();
+  if (k === "alertas") pintarAlertas();
 }
 
 function irACritico(i) {

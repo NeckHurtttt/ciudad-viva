@@ -20,7 +20,15 @@
 | **Tu punto** | Tocas el mapa: aire (PM2,5), lluvia, viento, micros que pasan a 400 m, foco de calor más cercano y mejor hora para salir. |
 | **3D** | Día y noche según la hora (cielo, sol, ventanas y faroles), lluvia que cae donde llueve, humo de los focos movido por el viento real, edificios con ventanas, ~30 mil árboles y ~200 lugares clave con haz de luz. |
 | **Celular** | Panel deslizable desde abajo y calidad automática: si van menos de 26 cuadros/s baja árboles y partículas. |
-| **Presentación** | Recorrido guiado de 7 pasos para mostrarlo sin tocar nada. |
+| **Presentación** | Recorrido guiado de 7 pasos para mostrarlo sin tocar nada, con **narración por voz** opcional (botón 🔈 Voz). |
+| **Kiosco** | Pantalla completa con la presentación en bucle para un stand (botón ▣ Kiosco o abrir con `#kiosco`). Esc para salir. |
+| **Alertas** | Pestaña nueva: aire de hoy y mañana, lluvia de mañana, focos a menos de 10 y 50 km (y si el viento trae humo), atasco de entrada 7:45 y salida 18:45, y tu ruta. Con tu ubicación usa tu avenida. **Notificaciones** del navegador para lo grave y **canal diario por Telegram**. |
+| **Zonas** | Capa de zonas por anillo (norte/este/sur/oeste) con % de avenidas lentas, velocidad, aire, líneas de micro y focos; ranking en el panel de tráfico. |
+| **Fuego en contexto** | 25 años de focos del departamento (2001–2025, MODIS + VIIRS armonizados por NINAWI) y si esta semana está por encima de lo normal. |
+| **Comparar** | En Simular, el mapa alterna ANTES / DESPUÉS del cierre o la lluvia; el titular dice cuántos minutos suma cruzar la zona. |
+| **Captura** | Imagen de la vista con hora, % de tráfico lento, PM2,5, focos y el titular de la simulación, lista para compartir. |
+| **Cómo calculamos** | Cada capa y alerta lleva su etiqueta EN VIVO, RESPALDO, SATÉLITE, OSM, SIMULADO o ESTIMADO, y una ventana explica el modelo. |
+| **Daltónicos** | El tráfico pasa de verde/rojo a azul/naranja. |
 
 ## Qué es en vivo y qué es estimado
 
@@ -28,11 +36,24 @@
 - **Estimado:** el tráfico. No hay datos abiertos de tráfico en vivo para Bolivia (TomTom, HERE y Google no cubren Santa Cruz), así que se calcula por tramo con datos reales: cuántas líneas de micro pasan (OSM), tipo de vía, horas pico, cercanía al centro y lluvia, con una curva velocidad-volumen tipo BPR.
 - **Simulado:** la posición de los micros (las rutas son reales).
 - **Satelital:** focos de calor VIIRS de NASA FIRMS de los últimos 7 días, actualizados cada mañana por una GitHub Action.
+- **Histórico:** 25 años de focos (NINAWI, `datos/historico.json`).
+- **Zonas:** anillos aproximados; OpenStreetMap no tiene los distritos municipales de Santa Cruz.
 - **Reportes:** se guardan en el navegador. Con un `config.js` que defina `window.CV_SUPABASE = { url, key }` (tabla `reportes`: id, tipo, lon, lat, creado, votos) se comparten entre todos.
 
 ## Datos
 
-OpenStreetMap (avenidas, cruces y 71 líneas de micro) · OpenFreeMap (mapa base, lugares y parques) · Open-Meteo y CAMS (clima y aire) · NASA FIRMS (focos de calor) · geoBoundaries (límite departamental).
+OpenStreetMap (avenidas, cruces y 71 líneas de micro) · OpenFreeMap (mapa base, lugares y parques) · Open-Meteo y CAMS (clima y aire) · NASA FIRMS (focos de calor) · NINAWI (25 años de focos MODIS+VIIRS) · geoBoundaries (límite departamental).
+
+## Alertas por Telegram
+
+La Action diaria (`.github/workflows/focos.yml`, 7:17 de Bolivia) baja los focos y luego corre `scripts/alertas.py`, que manda un resumen (aire de hoy y mañana, lluvia, focos cerca de la ciudad y horas pico) a un canal o grupo de Telegram:
+
+1. Crear un bot con @BotFather y copiar su token.
+2. Agregar el bot como administrador del canal (o al grupo).
+3. En GitHub → Settings → Secrets → Actions: `TELEGRAM_TOKEN` (el token) y `TELEGRAM_CHAT` (por ejemplo `@ciudadvivascz` o el id del grupo).
+4. Opcional: en `config.js`, `window.CV_TELEGRAM = "https://t.me/ciudadvivascz"` para que el botón de la app abra el canal.
+
+Sin esos secretos el script solo imprime el mensaje (sirve para probarlo: `python scripts/alertas.py`).
 
 ## Correr en local
 

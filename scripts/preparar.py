@@ -218,6 +218,28 @@ def lugares():
     print("lugares:", len(hitos), "hitos", dict(Counter(h["c"] for h in hitos)), len(parques), "parques,", len(arboles), "árboles")
 
 
+def historico():
+    """Focos por año y semana en el depto. de Santa Cruz, 2001-2025, armonizados MODIS+VIIRS (de NINAWI).
+    Antes de 2012 solo hay MODIS: se multiplica por el factor de su celda para llevarlo a escala VIIRS."""
+    src = json.load(open(os.path.join(PROY, "calendario-fuego", "web", "datos", "focos.json")))
+    a0, a1 = src["anios"]; ns = src["semanas"]; s0 = (src["solape"][0] - a0) * ns
+    d = src["departamentos"].index("Santa Cruz")
+    sem = [0.0] * ((a1 - a0 + 1) * ns)
+    for c in src["celdas"]:
+        if c["d"] != d:
+            continue
+        for j, n in c["m"]:
+            if j < s0: sem[j] += n * c["k"]
+        for j, n in c["v"]:
+            if j >= s0: sem[j] += n
+    sem = [round(x) for x in sem]
+    anual = [sum(sem[a * ns:(a + 1) * ns]) for a in range(a1 - a0 + 1)]
+    json.dump({"fuente": "NINAWI: NASA FIRMS MODIS C6.1 + VIIRS S-NPP, armonizado a escala VIIRS",
+               "anios": [a0, a1], "semanas": ns, "anual": anual, "semanal": sem},
+              open(os.path.join(DATOS, "historico.json"), "w"), separators=(",", ":"))
+    print("histórico:", a0, "-", a1, "máx", max(anual), "en", a0 + anual.index(max(anual)))
+
+
 if __name__ == "__main__":
     os.makedirs(DATOS, exist_ok=True)
     if "--solo" in sys.argv:  # p. ej. --solo focos (la Action diaria)

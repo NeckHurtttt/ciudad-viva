@@ -29,10 +29,15 @@ function correrEscenario(e) {
   mapa.flyTo({ center: e.centro, zoom: e.zoom, pitch: 55, bearing: -15, duration: 2200, essential: true });
 }
 
+// Resultado en una frase: cuántos minutos más tarda cruzar 3 km de la zona afectada.
 function titularSim(a, b, top) {
-  const e = SIM.escenario; if (!e) return "";
+  const e = SIM.escenario, nombres = [...new Set([...T.sim.cerradas].map((i) => corto(T.vias[i].n)))];
+  const quien = e ? e.t : nombres.length ? `Cerrar ${nombres.slice(0, 2).join(" y ")}${nombres.length > 2 ? ` y ${nombres.length - 2} más` : ""}${T.sim.lluvia ? " con lluvia" : ""}` : "Un aguacero";
+  const ma = 3 / Math.max(a.vel, 3) * 60, mb = 3 / Math.max(b.vel, 3) * 60, extra = Math.round(mb - ma);
   const pa = Math.round(a.pctLento * 100), pb = Math.round(b.pctLento * 100), t = top[0];
-  let txt = `<b>${e.t}:</b> la zona pasa de <b>${pa}%</b> a <b>${pb}%</b> de avenidas lentas`;
+  let txt = extra >= 1 ? `<b>${quien}</b> suma <b>+${extra} min</b> a quien cruza 3 km de la zona (${Math.round(ma)} → ${Math.round(mb)} min)`
+    : `<b>${quien}</b> casi no cambia el tiempo de viaje en la zona`;
+  txt += `; las avenidas lentas pasan de ${pa}% a ${pb}%`;
   if (t) txt += ` y ${corto(t.v.n)} cae de ${Math.round(SIM.base.v[t.v.i])} a ${Math.round(t.v.v)} km/h`;
   return `<div class="titular">${txt}.</div>`;
 }

@@ -20,7 +20,7 @@ const NIVELES = [ // [desde fracción de v_libre, nombre, color]
   [0.18, "Muy lento", "#ff4d6d"],
   [0, "Atascado", "#d23cff"],
 ];
-const nivel = (r) => NIVELES.find((n) => r >= n[0]);
+const nivel = (r) => NIVELES.find((n) => r >= n[0]) || NIVELES[NIVELES.length - 1];
 
 const T = { vias: [], cruces: [], criticos: [], horaCalc: -1, indice: [], listo: false, part: [] };
 

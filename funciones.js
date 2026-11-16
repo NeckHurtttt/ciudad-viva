@@ -327,6 +327,7 @@ async function presentar() {
   const total = 7;
   const paso = async (n, titulo, texto, accion, ms = 7500) => {
     if (!vivo()) return false;
+    if (typeof VOZ !== "undefined" && VOZ.on) ms *= 1.45; // con narración, más tiempo por paso
     $("#guion").hidden = false;
     $("#guion .num").textContent = `${n}/${total}`;
     $("#guion h3").textContent = titulo; $("#guion p").innerHTML = texto;

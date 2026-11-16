@@ -21,3 +21,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add datos/focos.json
           git diff --cached --quiet || git commit -m "Focos de calor del $(date -u +%F)" && git push
+      - name: Mandar alertas por Telegram (si hay TELEGRAM_TOKEN y TELEGRAM_CHAT en Secrets)
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+        run: python scripts/alertas.py

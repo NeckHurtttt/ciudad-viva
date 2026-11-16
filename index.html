@@ -8,7 +8,7 @@
 <link rel="icon" href="icono.svg">
 <link rel="stylesheet" href="vendor/fuentes.css">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="estilo.css?v=11161023">
+<link rel="stylesheet" href="estilo.css?v=11161430">
 </head>
 <body>
 <div id="mapa"></div>
@@ -39,6 +39,10 @@
     <button id="presentar" class="destacado" title="Presentación guiada">▶ Presentación</button>
     <button id="compartir" title="Copiar enlace a esta vista">⤴ Compartir</button>
     <button id="calidad" title="Calidad gráfica">◐ Calidad: auto</button>
+    <button id="captura" title="Guardar una imagen de esta vista con sus datos">◉ Captura</button>
+    <button id="kiosco" title="Pantalla completa con la presentación en bucle (para un stand)">▣ Kiosco</button>
+    <button id="dalt" title="Tráfico en azul y naranja en vez de verde y rojo">◑ Daltónicos</button>
+    <button id="metodoAbrir" title="De dónde sale cada dato y cómo se calcula">ⓘ Cómo calculamos</button>
   </div>
 </aside>
 
@@ -49,6 +53,7 @@
     <button data-tab="ruta" role="tab">Ruta</button>
     <button data-tab="sim" role="tab">Simular</button>
     <button data-tab="punto" role="tab">Punto</button>
+    <button data-tab="alertas" role="tab">Alertas</button>
   </div>
   <div id="secRuta" class="sec" hidden>
     <div class="modo-ruta" role="radiogroup"><button data-modo="auto" class="on">🚗 Auto</button><button data-modo="micro">🚌 Micro</button></div>
@@ -68,6 +73,7 @@
     <button id="simModo" class="accion"><i>✕</i><b>Cerrar calles</b></button>
     <button id="simLluvia" class="accion lluvia"><i>☂</i><b>Lluvia fuerte</b></button>
     <div id="simInfo"></div>
+    <button id="simComparar" class="accion comparar"><i>⇄</i><b>Comparar antes / después</b></button>
     <button id="simReset" class="mini">Restablecer todo</button>
   </div>
   <div id="secTrafico" class="sec"><div class="vacio"><div class="radar"></div><p>Calculando el tráfico…</p></div></div>
@@ -77,6 +83,14 @@
     <p>Toca cualquier lugar del mapa para ver el aire, la lluvia, los micros que pasan cerca y el foco de calor más próximo.</p>
   </div>
   <div id="puntoInfo" hidden></div>
+  </div>
+  <div id="secAlertas" class="sec" hidden>
+    <div class="ale-cab"><span id="aleDonde">Cerca de la plaza 24 de Septiembre</span><button id="aleYo" class="mini">◎ Mi ubicación</button></div>
+    <div id="aleLista"><div class="vacio"><div class="radar"></div><p>Revisando aire, lluvia, fuego y tráfico…</p></div></div>
+    <button id="aleNotif" class="accion aviso-btn"><i>🔔</i><b>Avisarme en este equipo</b></button>
+    <button id="aleTele" class="accion tele"><i>✈</i><b>Canal diario por Telegram</b></button>
+    <div class="sub">Fuego en contexto · 25 años</div>
+    <div id="fuegoHist"></div>
   </div>
 </aside>
 
@@ -111,23 +125,58 @@
 </div>
 
 <div id="guion" class="vidrio" hidden>
-  <div class="cab"><span class="num">1/7</span><button id="guionSalir" class="mini">Salir ✕</button></div>
+  <div class="cab"><span class="num">1/7</span><span><button id="guionVoz" class="mini" title="Narrar cada paso en voz alta">🔈 Voz</button> <button id="guionSalir" class="mini">Salir ✕</button></span></div>
   <h3></h3><p></p>
   <div class="barra-g"><i></i></div>
 </div>
 
 <div id="cargando"><div class="anillo"></div><p>Despertando la ciudad…</p></div>
-<div id="fuentes">Datos: OpenStreetMap (calles y micros) · tráfico estimado · NASA FIRMS · Open-Meteo/CAMS · mapa OpenFreeMap</div>
+<div id="fuentes" role="button" tabindex="0" title="Cómo calculamos">Datos: OpenStreetMap (calles y micros) · tráfico estimado · NASA FIRMS · Open-Meteo/CAMS · mapa OpenFreeMap · <u>ⓘ cómo calculamos</u></div>
+<div id="cmpEtq" class="vidrio" hidden>DESPUÉS</div>
+
+<dialog id="metodo" class="vidrio">
+  <div class="met-cab"><h2>Cómo calculamos</h2><button id="metodoCerrar" class="mini" aria-label="Cerrar">✕</button></div>
+  <p>Cada número de Ciudad Viva lleva una etiqueta que dice de dónde sale:</p>
+  <table>
+    <tr><td><em class="org" style="--c:#2bd9a0">EN VIVO</em></td><td><b>Aire, lluvia, viento y temperatura.</b> Open-Meteo (modelos meteorológicos y CAMS de Copernicus) en 49 puntos de la ciudad, hora por hora. Se piden al abrir la página.</td></tr>
+    <tr><td><em class="org" style="--c:#ffd23f">RESPALDO</em></td><td>Si no hay internet, la copia guardada del mismo pronóstico.</td></tr>
+    <tr><td><em class="org" style="--c:#ff9f45">SATÉLITE</em></td><td><b>Focos de calor.</b> NASA FIRMS, sensor VIIRS (NOAA-20), últimos 7 días. Un robot los baja cada mañana a las 7:17. Los 25 años de historia vienen de NINAWI (MODIS + VIIRS armonizados).</td></tr>
+    <tr><td><em class="org" style="--c:#8fa2ff">OSM</em></td><td><b>Avenidas, cruces, lugares, parques y 71 líneas de micro.</b> OpenStreetMap, mapeado por la comunidad. Los edificios usan la altura o los pisos que tenga cargados.</td></tr>
+    <tr><td><em class="org" style="--c:#b47cff">SIMULADO</em></td><td><b>Micros en movimiento.</b> Los recorridos son reales; la posición de cada micro es una animación según la hora (no hay GPS de micros abierto).</td></tr>
+    <tr><td><em class="org" style="--c:#ff7ac6">ESTIMADO</em></td><td><b>Tráfico, rutas, zonas y simulaciones.</b> TomTom, HERE y Google no tienen tráfico en vivo de Santa Cruz, así que lo calculamos.</td></tr>
+  </table>
+  <h3>El tráfico, paso a paso</h3>
+  <ol>
+    <li><b>Demanda:</b> cuántas líneas de micro distintas pasan por cada tramo de avenida (más micros = más gente moviéndose).</li>
+    <li><b>Capacidad:</b> el tipo de vía. Troncal 55 km/h libres, primaria 42, secundaria 32.</li>
+    <li><b>Hora:</b> una curva con los picos de Santa Cruz: 7:40 entrada, 12:40 mediodía, 18:50 salida.</li>
+    <li><b>Centro:</b> dentro del 2do anillo el flujo es más denso.</li>
+    <li><b>Lluvia:</b> la lluvia real de esa hora suma hasta 35 % de carga (frenado y más autos).</li>
+    <li><b>Velocidad:</b> con la curva BPR, la fórmula clásica de ingeniería de tránsito: cuanto más cerca de la capacidad, más lento.</li>
+    <li><b>Reportes:</b> un choque, bloqueo o calle inundada reportado por la gente frena las avenidas a menos de 160 m.</li>
+  </ol>
+  <p>Lo calibramos para que en hora pico ~18 % de los km vayan lentos, a ~30 km/h de media, y los cruces críticos a 7–15 km/h.</p>
+  <h3>Lo demás</h3>
+  <ul>
+    <li><b>Ruta en auto:</b> camino más rápido (Dijkstra) sobre las avenidas con la velocidad de cada hora.</li>
+    <li><b>Ruta en micro:</b> caminata a 4,5 km/h hasta 650 m, espera media de 7 min, un transbordo a menos de 250 m.</li>
+    <li><b>Simular:</b> al cerrar una calle, su tráfico se reparte entre las avenidas cercanas; se compara la zona de 1,5 km antes y después.</li>
+    <li><b>Zonas:</b> anillos aproximados partidos en norte, este, sur y oeste (OpenStreetMap no tiene los distritos municipales).</li>
+    <li><b>Alertas:</b> pronóstico de Open-Meteo para tu punto, focos a menos de 10 y 50 km, y el tráfico estimado de entrada y salida.</li>
+  </ul>
+  <p class="ayuda">Código y datos: github.com/NeckHurtttt/ciudad-viva · scripts/preparar.py regenera todo.</p>
+</dialog>
 
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/deck.min.js"></script>
 <script src="config.js" onerror="this.remove()"></script>
-<script src="app.js?v=11161023"></script>
-<script src="trafico.js?v=11161023"></script>
-<script src="detalle.js?v=11161023"></script>
-<script src="micro.js?v=11161023"></script>
-<script src="ambiente.js?v=11161023"></script>
-<script src="extras.js?v=11161023"></script>
-<script src="funciones.js?v=11161023"></script>
+<script src="app.js?v=11161430"></script>
+<script src="trafico.js?v=11161430"></script>
+<script src="detalle.js?v=11161430"></script>
+<script src="micro.js?v=11161430"></script>
+<script src="ambiente.js?v=11161430"></script>
+<script src="extras.js?v=11161430"></script>
+<script src="funciones.js?v=11161430"></script>
+<script src="mejoras.js?v=11161430"></script>
 </body>
 </html>
