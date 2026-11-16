@@ -8,7 +8,7 @@
 <link rel="icon" href="icono.svg">
 <link rel="stylesheet" href="vendor/fuentes.css">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
-<link rel="stylesheet" href="estilo.css?v=11162100">
+<link rel="stylesheet" href="estilo.css?v=11162200">
 </head>
 <body>
 <div id="mapa"></div>
@@ -161,6 +161,7 @@
     <li><b>Ruta en auto:</b> camino más rápido (Dijkstra) sobre las avenidas con la velocidad de cada hora.</li>
     <li><b>Ruta en micro:</b> caminata a 4,5 km/h hasta 650 m, espera media de 7 min, un transbordo a menos de 250 m.</li>
     <li><b>Simular:</b> al cerrar una calle, su tráfico se reparte entre las avenidas cercanas; se compara la zona de 1,5 km antes y después.</li>
+    <li><b>Todas las casas:</b> OpenStreetMap no tiene todas las casas de Santa Cruz. Se suman ~484 000 edificios de <b>Microsoft Global ML Building Footprints</b> (detectados con IA en imágenes satelitales, licencia ODbL), sin los que ya están en OSM. La mayoría no trae altura: se estima por el tamaño de la planta (1 o 2 pisos en casas). Se cargan solo los de la zona que miras.</li>
     <li><b>Todos los edificios:</b> la planta y la altura vienen de OpenStreetMap (altura o pisos cuando los tiene). Cada uno recibe su propio color de fachada (paleta de colores reales de Santa Cruz: blanco hueso, crema, amarillo colonial, ocre, ladrillo, salmón, celeste, menta, gris cemento) según su altura (casas de 2 pisos con puerta, medianos de 4 pisos, torres de vidrio), un techo con su propio color (teja, hormigón, calamina roja, verde o azul, terraza blanca) y el borde del techo en verde neón a su altura real. De noche se encienden ventanas al azar. Es un dibujo, no una foto de cada fachada.</li>
     <li><b>Edificios icónicos:</b> la planta de 12 torres y de la Catedral sale de OpenStreetMap y la altura de la lista de Wikipedia de edificios más altos de Bolivia (Green Tower 140 m, Platinum II 136 m…). La Catedral no tiene medidas publicadas: la nave usa los 4 niveles de OSM y sus torres son una estimación.</li>
     <li><b>Zonas:</b> anillos aproximados partidos en norte, este, sur y oeste (OpenStreetMap no tiene los distritos municipales).</li>
@@ -172,13 +173,13 @@
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/deck.min.js"></script>
 <script src="config.js" onerror="this.remove()"></script>
-<script src="app.js?v=11162100"></script>
-<script src="trafico.js?v=11162100"></script>
-<script src="detalle.js?v=11162100"></script>
-<script src="micro.js?v=11162100"></script>
-<script src="ambiente.js?v=11162100"></script>
-<script src="extras.js?v=11162100"></script>
-<script src="funciones.js?v=11162100"></script>
-<script src="mejoras.js?v=11162100"></script>
+<script src="app.js?v=11162200"></script>
+<script src="trafico.js?v=11162200"></script>
+<script src="detalle.js?v=11162200"></script>
+<script src="micro.js?v=11162200"></script>
+<script src="ambiente.js?v=11162200"></script>
+<script src="extras.js?v=11162200"></script>
+<script src="funciones.js?v=11162200"></script>
+<script src="mejoras.js?v=11162200"></script>
 </body>
 </html>

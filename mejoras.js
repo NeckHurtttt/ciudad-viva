@@ -441,7 +441,7 @@ async function edificiosIconicos() {
       "fill-extrusion-color": "#b8664a", "fill-extrusion-vertical-gradient": true, "fill-extrusion-opacity": 1 } }, primerTexto);
 }
 function capasIconos(L) {
-  aplicarDiaNoche(); capasBordes(L);
+  aplicarDiaNoche(); capasBordes(L); capasCasas(L);
   if (!ICN.lista.length || !S.capas.edificios) return;
   if (AMB.dPatron && AMB.dPatron !== ICN.patron && mapa.getLayer("iconos-3d")) { // vidrio claro de día, encendido de noche
     ICN.patron = AMB.dPatron; const dia = AMB.dPatron === "dia";
@@ -584,6 +584,81 @@ function aplicarDiaNoche() {
   mapa.setPaintProperty("techos", "fill-extrusion-color", m);
 }
 
+/* ===================== Todas las casas (Overture Maps: Google + Microsoft) ===================== */
+// OpenStreetMap no tiene todas las casas de Santa Cruz. Overture Maps junta las que Google Open Buildings
+// y Microsoft detectaron en imágenes satelitales; aquí van solo las que no están en OSM (esas ya las dibuja el mapa base).
+const CAS = { idx: null, celdas: new Map(), lista: [], v: 0, t: 0 };
+async function iniciarCasas() {
+  try { CAS.idx = await json("datos/casas.json"); } catch (e) { console.warn("sin casas de Overture", e); return; }
+  const luego = () => { clearTimeout(CAS.t); CAS.t = setTimeout(cargarCasas, 300); };
+  mapa.on("moveend", luego); luego();
+}
+function altoEstimado(area, k) { // sin altura en los datos: por el tamaño de la planta (1 o 2 pisos en casas, más en galpones)
+  if (area < 45) return 2.8 + (k % 3) * 0.3;
+  if (area < 160) return k % 4 === 0 ? 6.2 : 3.2 + (k % 5) * 0.25;
+  if (area < 600) return k % 3 === 0 ? 9 : 6;
+  return 7 + (k % 4) * 1.5;
+}
+function decodificar(clave, lista) {
+  const [ix, iy] = clave.split("_").map(Number), { caja, celda, q } = CAS.idx, bx = caja[0] + ix * celda, by = caja[1] + iy * celda, out = [];
+  for (const e of lista) {
+    let x = e[1], y = e[2]; const r = [[bx + x / q, by + y / q]];
+    for (let i = 3; i < e.length; i += 2) { x += e[i]; y += e[i + 1]; r.push([bx + x / q, by + y / q]); }
+    r.push(r[0]);
+    let a = 0; for (let i = 1; i < r.length; i++) a += r[i - 1][0] * r[i][1] - r[i][0] * r[i - 1][1];
+    const area = Math.abs(a / 2) * (KM_LON * 1000) * (KM_LAT * 1000), k = hashP(r[0]);
+    if (area > 12000 || area < 12) continue; // errores de detección: manchas que cubren manzanas enteras, o puntos
+    let cx = 0, cy = 0; for (let i = 0; i < r.length - 1; i++) { cx += r[i][0]; cy += r[i][1]; }
+    out.push({ poly: r, h: e[0] ? e[0] / 10 : altoEstimado(area, k), c: k, p: [cx / (r.length - 1), cy / (r.length - 1)] });
+  }
+  return out;
+}
+async function cargarCasas() {
+  if (!CAS.idx) return;
+  const z = mapa.getZoom(); if (z < 14) { if (CAS.lista.length) { CAS.lista = []; CAS.v++; } return; }
+  const c0 = mapa.getCenter().toArray(), radio = z > 16.5 ? 1300 : z > 15.4 ? 2200 : 3200;
+  const { caja, celda } = CAS.idx, cerca = [];
+  for (const clave of Object.keys(CAS.idx.celdas)) {
+    const [ix, iy] = clave.split("_").map(Number), cx = caja[0] + (ix + 0.5) * celda, cy = caja[1] + (iy + 0.5) * celda;
+    if (distM([cx, cy], c0) < radio + 1600) cerca.push(clave);
+  }
+  await Promise.all(cerca.filter((k) => !CAS.celdas.has(k)).map(async (k) => {
+    CAS.celdas.set(k, []); try { CAS.celdas.set(k, decodificar(k, await json(`datos/casas/${k}.json`))); } catch (e) { CAS.celdas.delete(k); }
+  }));
+  const lista = [], osm = indiceOSM();
+  for (const k of cerca) for (const b of CAS.celdas.get(k) || []) if (distM(b.p, c0) < radio && !enOSM(osm, b.p)) lista.push(b);
+  CAS.lista = lista.length > 45000 ? lista.sort((a, b) => distM(a.p, c0) - distM(b.p, c0)).slice(0, 45000) : lista; CAS.v++;
+}
+// Edificios de OSM ya cargados en los mosaicos: se usa su planta para no duplicar la casa de Microsoft.
+const G_OSM = 0.0004;
+function indiceOSM() {
+  const idx = new Map();
+  for (const f of mapa.querySourceFeatures("openmaptiles", { sourceLayer: "building" })) {
+    const g = f.geometry, polis = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+    for (const poli of polis) {
+      const r = poli[0]; if (!r || r.length < 4) continue;
+      let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+      for (const p of r) { a = Math.min(a, p[0]); b = Math.min(b, p[1]); c = Math.max(c, p[0]); d = Math.max(d, p[1]); }
+      if (c - a > 0.01 || d - b > 0.01) continue;
+      for (let x = Math.floor(a / G_OSM); x <= Math.floor(c / G_OSM); x++) for (let y = Math.floor(b / G_OSM); y <= Math.floor(d / G_OSM); y++) {
+        const k = x + ":" + y; if (!idx.has(k)) idx.set(k, []); idx.get(k).push(r);
+      }
+    }
+  }
+  return idx;
+}
+const enOSM = (idx, p) => (idx.get(Math.floor(p[0] / G_OSM) + ":" + Math.floor(p[1] / G_OSM)) || []).some((r) => dentroPoligono(p, r));
+function capasCasas(L) {
+  if (!CAS.lista.length || !S.capas.edificios || mapa.getZoom() < 14) return;
+  const noche = (AMB.dPatron || "noche") !== "dia", a = clamp((mapa.getZoom() - 14) / 0.5, 0, 1), clave = noche ? "n" : "d";
+  const col = EDF.cols || (EDF.cols = {});
+  if (!col[clave]) col[clave] = TECHOS.map((c) => hex(noche ? mezcla(c, "#0a0f22", 0.62) : mezcla(c, "#7d848c", 0.22)));
+  L.push(new SolidPolygonLayer({ id: "casas-overture", data: CAS.lista, getPolygon: (d) => d.poly, extruded: true, wireframe: true,
+    getElevation: (d) => d.h, getFillColor: (d) => [...col[clave][d.c % TECHOS.length].slice(0, 3), 255 * a],
+    getLineColor: [43, 217, 160, (noche ? 170 : 110) * a], material: { ambient: 0.45, diffuse: 0.65, shininess: 8, specularColor: [40, 60, 60] },
+    updateTriggers: { getFillColor: [clave, a, CAS.v], getLineColor: [noche, a] } }));
+}
+
 /* ===================== Arranque ===================== */
 function eventosMejoras() {
   $("#metodoAbrir").onclick = () => $("#metodo").showModal();
@@ -621,6 +696,7 @@ const esperaMejoras = setInterval(() => {
   clearInterval(esperaMejoras);
   eventosMejoras(); pintarOrigen(); prepararZonas();
   try { mejorarEdificios(); } catch (e) { console.warn("edificios", e); }
+  iniciarCasas();
   edificiosIconicos().catch((e) => console.warn("sin edificios icónicos", e));
   if (DALT.on) aplicarDalt(); else pintarTrafico();
   if (/kiosco/.test(location.hash)) setTimeout(() => kiosco(true), 1500);

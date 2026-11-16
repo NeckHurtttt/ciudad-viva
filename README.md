@@ -29,6 +29,7 @@
 | **Captura** | Imagen de la vista con hora, % de tráfico lento, PM2,5, focos y el titular de la simulación, lista para compartir. |
 | **Cómo calculamos** | Cada capa y alerta lleva su etiqueta EN VIVO, RESPALDO, SATÉLITE, OSM, SIMULADO o ESTIMADO, y una ventana explica el modelo. |
 | **Edificios icónicos** | Las 11 torres más altas terminadas + Macororó 16/17 (en construcción) con su planta real de OpenStreetMap y su altura publicada (Green Tower 140 m, Platinum II 136 m, La Casona 127 m…), con nombre, altura y pisos; buscables. La Catedral con su planta de OSM y dos torres en la fachada que da a la plaza (altura estimada: no hay medida publicada). |
+| **Todas las casas** | ~484 mil edificios de Microsoft Global ML Building Footprints (IA sobre imágenes satelitales) completan los que faltan en OpenStreetMap; cada techo con su color y borde verde neón. Se bajan con `python scripts/casas_ms.py` y se cargan por zonas de 2 km. |
 | **Daltónicos** | El tráfico pasa de verde/rojo a azul/naranja. |
 
 ## Qué es en vivo y qué es estimado
@@ -43,7 +44,7 @@
 
 ## Datos
 
-OpenStreetMap (avenidas, cruces y 71 líneas de micro) · OpenFreeMap (mapa base, lugares y parques) · Open-Meteo y CAMS (clima y aire) · NASA FIRMS (focos de calor) · NINAWI (25 años de focos MODIS+VIIRS) · geoBoundaries (límite departamental).
+OpenStreetMap (avenidas, cruces y 71 líneas de micro) · OpenFreeMap (mapa base, lugares y parques) · Open-Meteo y CAMS (clima y aire) · NASA FIRMS (focos de calor) · NINAWI (25 años de focos MODIS+VIIRS) · Microsoft Global ML Building Footprints (casas, ODbL) · geoBoundaries (límite departamental).
 
 ## Alertas por Telegram
 
