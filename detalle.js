@@ -102,16 +102,15 @@ function capasDetalle(L, seg) {
     const a = clamp((z - 14.2) / 0.8, 0, 1);
     L.push(new ColumnLayer({
       id: "troncos", data: D.arboles, getPosition: (d) => d.p, diskResolution: 6, radius: 0.45, extruded: true,
-      getElevation: (d) => d.h * 0.42, getFillColor: [92, 66, 48, 255 * a], updateTriggers: { getFillColor: a },
+      getElevation: (d) => d.h * 0.42, getFillColor: [92, 66, 48], opacity: a,
     }));
     // copa en tres capas apiladas (ancha abajo, angosta arriba): se lee como un árbol redondeado
-    const tonos = (d, k) => [18 + d.t * 26 + k * 14, 112 + d.t * 64 + k * 22, 70 + d.t * 46 + k * 10, 250 * a];
+    const tonos = (d, k) => [18 + d.t * 26 + k * 14, 112 + d.t * 64 + k * 22, 70 + d.t * 46 + k * 10]; // la aparición va por opacidad: no se recalcula por cuadro
     [[0, 0.38, 0.28, 1], [1, 0.62, 0.26, 0.82], [2, 0.84, 0.16, 0.5]].forEach(([k, base, alto, ancho]) => {
       for (const [grupo, rad] of [[0, 3.6], [1, 2.6]]) L.push(new ColumnLayer({
         id: `copa-${k}-${grupo}`, data: grupo ? (q().arboles < 1 ? [] : D.chicos) : D.grandes, diskResolution: 10, radius: rad * ancho, extruded: true,
         getPosition: (d) => [d.p[0], d.p[1], d.h * base], getElevation: (d) => d.h * alto,
-        getFillColor: (d) => tonos(d, k), material: { ambient: 0.5, diffuse: 0.7, shininess: 12, specularColor: [60, 90, 70] },
-        updateTriggers: { getFillColor: a },
+        getFillColor: (d) => tonos(d, k), opacity: a, material: { ambient: 0.5, diffuse: 0.7, shininess: 12, specularColor: [60, 90, 70] },
       }));
     });
   }

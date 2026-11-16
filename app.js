@@ -260,6 +260,7 @@ function capas(seg) {
 const mapa = new maplibregl.Map({
   container: "mapa", style: "https://tiles.openfreemap.org/styles/dark", ...CIUDAD,
   maxPitch: 75, antialias: true, attributionControl: false, preserveDrawingBuffer: true, // para la captura
+  pixelRatio: Math.min(devicePixelRatio || 1, 1.5), // en pantallas muy densas se dibuja a 1,5× para no trabar
 });
 const overlay = new MapboxOverlay({
   interleaved: true, layers: [],

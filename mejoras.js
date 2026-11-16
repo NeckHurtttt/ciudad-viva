@@ -529,7 +529,7 @@ function mejorarEdificios() {
       "fill-extrusion-color": "#0f2a2c", "fill-extrusion-opacity": 1 } }, primerTexto);
   const luego = () => { clearTimeout(EDF.t); EDF.t = setTimeout(bordesTechos, 350); };
   mapa.on("moveend", luego);
-  mapa.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) luego(); });
+  mapa.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) { EDF.nuevos = true; luego(); } });
   EDF.listo = true; EDF.patron = "";
   aplicarDiaNoche(); luego();
 }
@@ -539,7 +539,10 @@ const hashP = (p) => { let h = Math.round(p[0] * 1e5) * 73856093 ^ Math.round(p[
 function bordesTechos() {
   if (mapa.getZoom() < 14.8) { EDF.bordes = []; EDF.techos = []; return; }
   const z0 = mapa.getZoom(), c0 = mapa.getCenter().toArray(), radio = z0 > 16.5 ? 1100 : z0 > 15.6 ? 1900 : 3000;
-  const bordes = [], techos = [], vistos = new Set();
+  const bordes = [], techos = [], vistos = new Set(), tope = { alta: 12000, media: 7000, baja: 3000 }[Q.nivel] || 12000;
+  const banda = Math.round(z0 * 2) + Q.nivel;
+  if (EDF.centro && EDF.banda === banda && distM(EDF.centro, c0) < radio * 0.25 && !EDF.nuevos) return;
+  EDF.centro = c0; EDF.banda = banda; EDF.nuevos = false;
   for (const f of mapa.querySourceFeatures("openmaptiles", { sourceLayer: "building" })) {
     const pr = f.properties; if (pr.hide_3d || ICN.ocultos.has(f.id)) continue;
     const g = f.geometry, polis = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
@@ -552,9 +555,9 @@ function bordesTechos() {
       const z = h + 0.08, alto = h >= 40 ? 2 : h >= 9 ? 1 : 0;
       techos.push({ poly: poli.map((ring) => ring.map((p) => [p[0], p[1], z])), c: hashP([cx, cy]), alto });
       bordes.push({ path: r.map((p) => [p[0], p[1], z + 0.12]), alto });
-      if (techos.length > 14000) break;
+      if (techos.length > tope) break;
     }
-    if (techos.length > 14000) break;
+    if (techos.length > tope) break;
   }
   EDF.bordes = bordes; EDF.techos = techos; EDF.v++;
 }
@@ -565,11 +568,11 @@ function capasBordes(L) {
   const clave = noche ? "n" : "d";
   if (!col[clave]) col[clave] = TECHOS.map((c) => hex(noche ? mezcla(c, "#0a0f22", 0.62) : mezcla(c, "#7d848c", 0.22)));
   L.push(new SolidPolygonLayer({ id: "techos-color", data: EDF.techos, getPolygon: (d) => d.poly, filled: true, extruded: false,
-    getFillColor: (d) => (d.alto === 2 ? [40, 120, 160, 255 * a] : [...col[clave][d.c % TECHOS.length].slice(0, 3), 255 * a]),
-    updateTriggers: { getFillColor: [clave, a, EDF.v] } }));
+    getFillColor: (d) => (d.alto === 2 ? [40, 120, 160] : col[clave][d.c % TECHOS.length]), opacity: a,
+    updateTriggers: { getFillColor: [clave, EDF.v] } }));
   L.push(new PathLayer({ id: "techo-neon", data: EDF.bordes, getPath: (d) => d.path, widthUnits: "pixels",
-    getWidth: (d) => (d.alto === 2 ? 1.6 : 1.1), getColor: (d) => (d.alto === 2 ? [64, 224, 255, (noche ? 230 : 170) * a] : [43, 217, 160, (noche ? (d.alto ? 210 : 160) : 130) * a]),
-    updateTriggers: { getColor: [noche, a, EDF.v] } }));
+    getWidth: (d) => (d.alto === 2 ? 1.6 : 1.1), getColor: (d) => (d.alto === 2 ? [64, 224, 255, noche ? 230 : 170] : [43, 217, 160, noche ? (d.alto ? 210 : 160) : 130]), opacity: a,
+    updateTriggers: { getColor: [noche, EDF.v] } }));
 }
 function aplicarDiaNoche() {
   const dia = (AMB.dPatron || "noche") === "dia" ? "d" : "n";
@@ -616,7 +619,10 @@ function decodificar(clave, lista) {
 async function cargarCasas() {
   if (!CAS.idx) return;
   const z = mapa.getZoom(); if (z < 14) { if (CAS.lista.length) { CAS.lista = []; CAS.v++; } return; }
-  const c0 = mapa.getCenter().toArray(), radio = z > 16.5 ? 1300 : z > 15.4 ? 2200 : 3200;
+  const c0 = mapa.getCenter().toArray(), fq = { alta: 1, media: 0.75, baja: 0.5 }[Q.nivel] || 1;
+  const radio = (z > 16.5 ? 1100 : z > 15.4 ? 1800 : 2600) * fq, tope = { alta: 28000, media: 14000, baja: 6000 }[Q.nivel] || 28000;
+  const banda = Math.round(z * 2) + Q.nivel;
+  if (CAS.centro && CAS.banda === banda && distM(CAS.centro, c0) < radio * 0.3) return; // casi no se movió: se queda lo que hay
   const { caja, celda } = CAS.idx, cerca = [];
   for (const clave of Object.keys(CAS.idx.celdas)) {
     const [ix, iy] = clave.split("_").map(Number), cx = caja[0] + (ix + 0.5) * celda, cy = caja[1] + (iy + 0.5) * celda;
@@ -627,7 +633,8 @@ async function cargarCasas() {
   }));
   const lista = [], osm = indiceOSM();
   for (const k of cerca) for (const b of CAS.celdas.get(k) || []) if (distM(b.p, c0) < radio && !enOSM(osm, b.p)) lista.push(b);
-  CAS.lista = lista.length > 45000 ? lista.sort((a, b) => distM(a.p, c0) - distM(b.p, c0)).slice(0, 45000) : lista; CAS.v++;
+  CAS.lista = lista.length > tope ? lista.sort((a, b) => distM(a.p, c0) - distM(b.p, c0)).slice(0, tope) : lista; CAS.v++;
+  CAS.centro = c0; CAS.banda = banda;
 }
 // Edificios de OSM ya cargados en los mosaicos: se usa su planta para no duplicar la casa de Microsoft.
 const G_OSM = 0.0004;
@@ -653,10 +660,11 @@ function capasCasas(L) {
   const noche = (AMB.dPatron || "noche") !== "dia", a = clamp((mapa.getZoom() - 14) / 0.5, 0, 1), clave = noche ? "n" : "d";
   const col = EDF.cols || (EDF.cols = {});
   if (!col[clave]) col[clave] = TECHOS.map((c) => hex(noche ? mezcla(c, "#0a0f22", 0.62) : mezcla(c, "#7d848c", 0.22)));
-  L.push(new SolidPolygonLayer({ id: "casas-overture", data: CAS.lista, getPolygon: (d) => d.poly, extruded: true, wireframe: true,
-    getElevation: (d) => d.h, getFillColor: (d) => [...col[clave][d.c % TECHOS.length].slice(0, 3), 255 * a],
-    getLineColor: [43, 217, 160, (noche ? 170 : 110) * a], material: { ambient: 0.45, diffuse: 0.65, shininess: 8, specularColor: [40, 60, 60] },
-    updateTriggers: { getFillColor: [clave, a, CAS.v], getLineColor: [noche, a] } }));
+  // el color va por casa y solo se recalcula si cambian las casas o el día/noche; la aparición al hacer zoom usa la opacidad de la capa
+  L.push(new SolidPolygonLayer({ id: "casas-ms", data: CAS.lista, getPolygon: (d) => d.poly, extruded: true, wireframe: Q.nivel === "alta",
+    getElevation: (d) => d.h, getFillColor: (d) => col[clave][d.c % TECHOS.length], opacity: a,
+    getLineColor: noche ? [43, 217, 160, 170] : [43, 217, 160, 110], material: { ambient: 0.45, diffuse: 0.65, shininess: 8, specularColor: [40, 60, 60] },
+    updateTriggers: { getFillColor: [clave, CAS.v], getLineColor: noche } }));
 }
 
 /* ===================== Arranque ===================== */
