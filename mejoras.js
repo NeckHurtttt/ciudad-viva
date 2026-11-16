@@ -97,6 +97,7 @@ function capasMejoras(L, seg) {
       getColor: [236, 240, 255, 230], background: true, getBackgroundColor: (d) => [...hex(d.col).slice(0, 3).map((c) => c * 0.3), 200],
       backgroundPadding: [5, 2], parameters: prof, updateTriggers: { getText: ZON.clave, getBackgroundColor: ZON.clave } }));
   }
+  capasIconos(L);
   if (CMP.on) $("#cmpEtq").textContent = CMP.antes ? "ANTES" : "DESPUÉS";
 }
 
@@ -360,6 +361,104 @@ pintarTrafico = function () {
   if (!prev || k !== ZON.clave || el.dataset.z !== el.dataset.h) { prev?.remove(); el.insertAdjacentHTML("beforeend", listaZonas()); el.dataset.z = el.dataset.h; }
 };
 
+/* ===================== Edificios icónicos ===================== */
+// Planta real de OpenStreetMap y altura publicada (Wikipedia). La Catedral no tiene medidas publicadas:
+// la nave usa los 4 niveles de OSM y las dos torres del frente que da a la plaza son una estimación.
+const ICN = { lista: [], patron: "", ocultos: new Set(), filtros: {}, t: 0 };
+const aMetros = (p, c) => [(p[0] - c[0]) * KM_LON * 1000, (p[1] - c[1]) * KM_LAT * 1000];
+const aGrados = (m, c) => [c[0] + m[0] / (KM_LON * 1000), c[1] + m[1] / (KM_LAT * 1000)];
+function centroide(r) { const n = r.length - (r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? 1 : 0); let x = 0, y = 0; for (let i = 0; i < n; i++) { x += r[i][0]; y += r[i][1]; } return [x / n, y / n]; }
+const escalar = (r, c, f) => r.map((p) => [c[0] + (p[0] - c[0]) * f, c[1] + (p[1] - c[1]) * f]);
+function torresCatedral(r, c) {
+  // caja orientada de la planta (eje principal); la fachada es el lado de la caja más cercano a la plaza 24 de Septiembre
+  const pts = r.map((p) => aMetros(p, c));
+  let sxx = 0, syy = 0, sxy = 0; for (const [x, y] of pts) { sxx += x * x; syy += y * y; sxy += x * y; }
+  const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy), u = [Math.cos(ang), Math.sin(ang)], v = [-u[1], u[0]];
+  const pu = pts.map((p) => p[0] * u[0] + p[1] * u[1]), pv = pts.map((p) => p[0] * v[0] + p[1] * v[1]);
+  const u0 = Math.min(...pu), u1 = Math.max(...pu), v0 = Math.min(...pv), v1 = Math.max(...pv);
+  const en = (a, b) => [u[0] * a + v[0] * b, u[1] * a + v[1] * b];
+  const lados = [[u0, "u", 1], [u1, "u", -1], [v0, "v", 1], [v1, "v", -1]].map(([val, eje, dentro]) => {
+    const mid = eje === "u" ? en(val, (v0 + v1) / 2) : en((u0 + u1) / 2, val);
+    return { val, eje, dentro, d: distM(aGrados(mid, c), PLAZA_24) };
+  }).sort((a, b) => a.d - b.d);
+  const f = lados[0], largo = f.eje === "u" ? v1 - v0 : u1 - u0, lado = Math.max(5, Math.min(9, largo / 4.5));
+  const cuadro = (a, b, l) => { const q = (x, y) => aGrados(f.eje === "u" ? en(x, y) : en(y, x), c);
+    return [q(a, b), q(a + l * f.dentro, b), q(a + l * f.dentro, b + l), q(a, b + l), q(a, b)]; };
+  const ini = f.eje === "u" ? v0 : u0, fin = f.eje === "u" ? v1 : u1, out = [];
+  for (const b of [ini + 0.4, fin - lado - 0.4]) {
+    out.push({ poly: cuadro(f.val, b, lado), base: 0, h: 30 });
+    out.push({ poly: cuadro(f.val + lado * 0.22 * f.dentro, b + lado * 0.22, lado * 0.56), base: 30, h: 37 }); // linterna
+  }
+  return out;
+}
+// también se ocultan las partes (torres, cúpulas) del mapa base cuyo centro cae dentro de la planta
+function aplicarOcultos() {
+  const sin = ["!", ["in", ["id"], ["literal", [...ICN.ocultos]]]];
+  for (const id of ["edificios-3d", "edificios-altos", "edificios-borde"]) if (mapa.getLayer(id)) {
+    if (!(id in ICN.filtros)) ICN.filtros[id] = mapa.getFilter(id) || null;
+    mapa.setFilter(id, ICN.filtros[id] ? ["all", ICN.filtros[id], sin] : sin);
+  }
+}
+function ocultarDuplicados() {
+  if (!ICN.lista.length || mapa.getZoom() < 13) return;
+  let nuevos = false;
+  for (const f of mapa.querySourceFeatures("openmaptiles", { sourceLayer: "building" })) {
+    if (f.id == null || ICN.ocultos.has(f.id)) continue;
+    const g = f.geometry, r = g.type === "Polygon" ? g.coordinates[0] : g.type === "MultiPolygon" ? g.coordinates[0][0] : null;
+    if (!r || !ICN.lista.some((e) => Math.abs(e.c[0] - r[0][0]) < 0.003 && Math.abs(e.c[1] - r[0][1]) < 0.003)) continue;
+    const c = centroide(r);
+    if (ICN.lista.some((e) => dentroPoligono(c, e.p))) { ICN.ocultos.add(f.id); nuevos = true; }
+  }
+  if (nuevos) aplicarOcultos();
+}
+async function edificiosIconicos() {
+  const d = await json("datos/iconos.json"), feats = [];
+  for (const e of d.edificios) {
+    const r = e.p.slice(); if (r[0][0] !== r[r.length - 1][0] || r[0][1] !== r[r.length - 1][1]) r.push(r[0]);
+    e.c = centroide(r);
+    const f = (poly, base, h, tipo) => feats.push({ type: "Feature", properties: { n: e.n, base, h, tipo }, geometry: { type: "Polygon", coordinates: [poly] } });
+    if (e.h > 0) { f(escalar(r, e.c, 1.04), 0, e.h, "torre"); e.techo = e.h; }
+    else { f(escalar(r, e.c, 1.03), 0, 16, "templo"); for (const t of torresCatedral(r, e.c)) f(t.poly, t.base, t.h, "templo"); e.techo = 37; }
+    ICN.lista.push(e);
+  }
+  // el mapa base ya trae estos edificios (id de mosaico = id de OSM × 10 + 2): se ocultan para no duplicarlos
+  for (const e of ICN.lista) ICN.ocultos.add(e.osm * 10 + 2);
+  aplicarOcultos();
+  const luego = () => { clearTimeout(ICN.t); ICN.t = setTimeout(ocultarDuplicados, 500); };
+  mapa.on("moveend", luego);
+  mapa.on("sourcedata", (e) => { if (e.sourceId === "openmaptiles" && e.tile) luego(); }); // mosaicos que llegan después
+  setTimeout(ocultarDuplicados, 1500);
+  const primerTexto = mapa.getStyle().layers.find((l) => l.type === "symbol")?.id;
+  mapa.addSource("iconos", { type: "geojson", data: { type: "FeatureCollection", features: feats } });
+  mapa.addLayer({ id: "iconos-base", type: "line", source: "iconos", minzoom: 12, filter: ["==", ["get", "base"], 0],
+    paint: { "line-color": ["match", ["get", "tipo"], "templo", "#ffb27a", "#40e0ff"], "line-width": 2.5, "line-blur": 2, "line-opacity": 0.8 } }, primerTexto);
+  mapa.addLayer({ id: "iconos-3d", type: "fill-extrusion", source: "iconos", minzoom: 12, filter: ["==", ["get", "tipo"], "torre"],
+    paint: { "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12, 0, 13, ["get", "h"]], "fill-extrusion-base": ["get", "base"],
+      "fill-extrusion-color": ["interpolate", ["linear"], ["get", "h"], 95, "#2f7fb8", 140, "#5fd2ff"], "fill-extrusion-vertical-gradient": true,
+      "fill-extrusion-opacity": 0.96 } }, primerTexto);
+  mapa.addLayer({ id: "iconos-templo", type: "fill-extrusion", source: "iconos", minzoom: 12, filter: ["==", ["get", "tipo"], "templo"],
+    paint: { "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12, 0, 13, ["get", "h"]], "fill-extrusion-base": ["get", "base"],
+      "fill-extrusion-color": "#b8664a", "fill-extrusion-vertical-gradient": true, "fill-extrusion-opacity": 1 } }, primerTexto);
+}
+function capasIconos(L) {
+  if (!ICN.lista.length || !S.capas.edificios) return;
+  if (AMB.dPatron && AMB.dPatron !== ICN.patron && mapa.getLayer("iconos-3d")) { // vidrio claro de día, encendido de noche
+    ICN.patron = AMB.dPatron; const dia = AMB.dPatron === "dia";
+    mapa.setPaintProperty("iconos-3d", "fill-extrusion-color", ["interpolate", ["linear"], ["get", "h"], 95, dia ? "#3d8fc4" : "#1f5f99", 140, dia ? "#8fe3ff" : "#47c8ff"]);
+  }
+  const z = mapa.getZoom(); if (z < 13.2 || !S.capas.lugares) return;
+  const c0 = mapa.getCenter().toArray(), cerca = ICN.lista.filter((e) => distM(e.c, c0) < (z > 15 ? 2500 : 7000));
+  L.push(new TextLayer({ id: "iconos-txt", data: cerca, getPosition: (d) => [...d.c, d.techo + 6], billboard: true, characterSet: "auto",
+    getText: (d) => `${d.n}\n${d.h ? `${d.h} m · ${d.pisos} pisos` : "torres: altura estimada"}`, getSize: 11, sizeUnits: "pixels",
+    fontFamily: "Space Grotesk, system-ui, sans-serif", fontWeight: 600, getColor: [236, 245, 255, 255], getTextAnchor: "middle", getAlignmentBaseline: "bottom",
+    background: true, getBackgroundColor: (d) => (d.h ? [8, 40, 56, 215] : [60, 28, 16, 215]), backgroundPadding: [6, 3],
+    getBorderColor: (d) => (d.h ? [64, 224, 255, 200] : [255, 178, 122, 200]), getBorderWidth: 1 }));
+}
+const indiceOriginal = indiceBusqueda;
+indiceBusqueda = function () {
+  return indiceOriginal().concat(ICN.lista.map((e) => ({ t: e.n, s: e.h ? `Edificio · ${e.h} m · ${e.pisos} pisos · ${e.anio}` : "Templo · 1915", c: e.h ? "#40e0ff" : "#ffb27a", p: e.c, tipo: "lugar" })));
+};
+
 /* ===================== Arranque ===================== */
 function eventosMejoras() {
   $("#metodoAbrir").onclick = () => $("#metodo").showModal();
@@ -396,6 +495,7 @@ const esperaMejoras = setInterval(() => {
   if (!(S.clima && S.focos && T.listo && document.querySelector(".capa"))) return;
   clearInterval(esperaMejoras);
   eventosMejoras(); pintarOrigen(); prepararZonas();
+  edificiosIconicos().catch((e) => console.warn("sin edificios icónicos", e));
   if (DALT.on) aplicarDalt(); else pintarTrafico();
   if (/kiosco/.test(location.hash)) setTimeout(() => kiosco(true), 1500);
   revisarNotif();

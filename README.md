@@ -28,6 +28,7 @@
 | **Comparar** | En Simular, el mapa alterna ANTES / DESPUÉS del cierre o la lluvia; el titular dice cuántos minutos suma cruzar la zona. |
 | **Captura** | Imagen de la vista con hora, % de tráfico lento, PM2,5, focos y el titular de la simulación, lista para compartir. |
 | **Cómo calculamos** | Cada capa y alerta lleva su etiqueta EN VIVO, RESPALDO, SATÉLITE, OSM, SIMULADO o ESTIMADO, y una ventana explica el modelo. |
+| **Edificios icónicos** | Las 11 torres más altas terminadas + Macororó 16/17 (en construcción) con su planta real de OpenStreetMap y su altura publicada (Green Tower 140 m, Platinum II 136 m, La Casona 127 m…), con nombre, altura y pisos; buscables. La Catedral con su planta de OSM y dos torres en la fachada que da a la plaza (altura estimada: no hay medida publicada). |
 | **Daltónicos** | El tráfico pasa de verde/rojo a azul/naranja. |
 
 ## Qué es en vivo y qué es estimado

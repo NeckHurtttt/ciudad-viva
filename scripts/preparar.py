@@ -218,6 +218,43 @@ def lugares():
     print("lugares:", len(hitos), "hitos", dict(Counter(h["c"] for h in hitos)), len(parques), "parques,", len(arboles), "árboles")
 
 
+# Edificios icónicos: planta real de OpenStreetMap + altura publicada (Wikipedia, "List of tallest buildings in Bolivia").
+ICONOS = [  # (id de way en OSM, nombre, altura m, pisos, año, uso, fuente de la altura)
+    (1363342183, "Green Tower", 140, 34, 2024, "mixto", "wiki"),
+    (1363342184, "Torre Platinum II", 136, 35, 2021, "vivienda", "wiki"),
+    (403398811, "Condominio La Casona", 127, 27, 2009, "vivienda", "wiki"),
+    (1568503564, "Manzana 40", 123, 31, 2021, "mixto", "wiki"),
+    (397027907, "Torre Dúo", 109, 27, 2012, "oficinas", "wiki"),
+    (442476830, "Ambassador Business Center", 108, 26, 2017, "oficinas", "wiki"),
+    (1368451901, "Condominio La Riviera", 105, 28, 2017, "vivienda", "wiki"),
+    (1368451893, "Condominio Mare", 103, 28, 2023, "vivienda", "wiki"),
+    (1368451890, "Epic Tower", 100, 27, 2022, "oficinas", "wiki"),
+    (87930658, "Palacio de Justicia", 100, 23, 1996, "gobierno", "wiki"),
+    (1560613449, "Swissôtel", 99, 26, 2019, "hotel", "wiki"),
+    (1564803416, "Macororó 16 y 17", 135, 36, 2026, "vivienda (en construcción)", "wiki"),
+    (302935722, "Catedral Basílica de San Lorenzo", 0, 4, 1915, "templo", "catedral"),
+]
+FUENTE_ALTURA = "https://en.wikipedia.org/wiki/List_of_tallest_buildings_in_Bolivia"
+def iconos(cache=None):
+    """Planta (OSM) de los edificios más altos y de la Catedral → datos/iconos.json."""
+    if cache:
+        els = json.load(open(cache))["elements"]
+    else:
+        ids = ",".join(str(i[0]) for i in ICONOS)
+        els = overpass(f"[out:json][timeout:60];way(id:{ids});out tags geom;")
+    geo = {e["id"]: [[round(p["lon"], 6), round(p["lat"], 6)] for p in e.get("geometry", [])] for e in els}
+    out = []
+    for wid, n, h, pisos, anio, uso, fu in ICONOS:
+        if wid not in geo:
+            print("  falta en OSM:", n, file=sys.stderr); continue
+        out.append({"osm": wid, "n": n, "h": h, "pisos": pisos, "anio": anio, "uso": uso,
+                    "fuente": FUENTE_ALTURA if fu == "wiki" else "OSM building:levels=4; torres estimadas (sin medida publicada)",
+                    "p": geo[wid]})
+    json.dump({"fuente": "Planta: OpenStreetMap (ODbL). Altura: Wikipedia, List of tallest buildings in Bolivia", "edificios": out},
+              open(os.path.join(DATOS, "iconos.json"), "w"), separators=(",", ":"), ensure_ascii=False)
+    print("iconos:", len(out))
+
+
 def historico():
     """Focos por año y semana en el depto. de Santa Cruz, 2001-2025, armonizados MODIS+VIIRS (de NINAWI).
     Antes de 2012 solo hay MODIS: se multiplica por el factor de su celda para llevarlo a escala VIIRS."""
@@ -243,7 +280,7 @@ def historico():
 if __name__ == "__main__":
     os.makedirs(DATOS, exist_ok=True)
     if "--solo" in sys.argv:  # p. ej. --solo focos (la Action diaria)
-        globals()[sys.argv[sys.argv.index("--solo") + 1]]()
+        i = sys.argv.index("--solo"); globals()[sys.argv[i + 1]](*sys.argv[i + 2:])  # p. ej. --solo iconos copia.json
         sys.exit()
     rutas()
     focos()
